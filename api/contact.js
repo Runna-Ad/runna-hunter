@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { name, company, email, phone, message, market } = req.body || {};
+  const { name, company, email, phone, message, market, scan } = req.body || {};
 
   if (!name || !company || !email) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -22,8 +22,8 @@ export default async function handler(req, res) {
   const isCA   = market === 'ca';
   const flag   = isCA ? '🇨🇦' : '🇲🇽';
   const subject = isCA
-    ? `New contact: ${name} — ${company} [CA]`
-    : `Nuevo contacto: ${name} — ${company} [MX]`;
+    ? `New contact: ${name} (${company}) [CA]`
+    : `Nuevo contacto: ${name} (${company}) [MX]`;
 
   try {
     await transporter.sendMail({
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       to:      'nils@runna.com.mx, pedro@runnareach.com',
       replyTo: email,
       subject,
-      html:    buildEmailHtml({ name, company, email, phone, message, market, isCA, flag, subject })
+      html:    buildEmailHtml({ name, company, email, phone, message, market, scan, isCA, flag, subject })
     });
     return res.status(200).json({ ok: true });
   } catch (err) {
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 }
 
 /* ── Branded HTML email ─────────────────────────────────── */
-function buildEmailHtml({ name, company, email, phone, message, market, isCA, flag, subject }) {
+function buildEmailHtml({ name, company, email, phone, message, market, scan, isCA, flag, subject }) {
   const marketLabel = isCA ? 'Canada' : 'México';
   const row = (label, value, link) => `
     <tr>
@@ -90,6 +90,8 @@ function buildEmailHtml({ name, company, email, phone, message, market, isCA, fl
       </td></tr>
     </table>` : ''}
 
+    ${scanBlock(scan)}
+
     <!-- Reply CTA -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
       <tr><td align="center">
@@ -111,6 +113,71 @@ function buildEmailHtml({ name, company, email, phone, message, market, isCA, fl
 </table>
 </body>
 </html>`;
+}
+
+/* ── Scan context block (pre-brief for the sales call) ──── */
+function scanBlock(scan) {
+  if (!scan) return '';
+  const money = n => '$' + Math.round(n || 0).toLocaleString('en-US');
+
+  const inputRow = (label, val) => val ? `
+    <tr>
+      <td style="padding:7px 16px;border-bottom:1px solid rgba(119,92,191,0.08);">
+        <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#775cbf;font-weight:700;">${label}</span>
+        <span style="font-size:13px;color:#f5f3fa;float:right;">${e(val)}</span>
+      </td>
+    </tr>` : '';
+
+  // Inputs
+  const tools = Array.isArray(scan.tools) && scan.tools.length ? scan.tools.join(', ') : '';
+  const inputs = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#13112a;border-radius:8px;overflow:hidden;margin-bottom:14px;">
+      ${inputRow('Industry', scan.industry)}
+      ${inputRow('Team size', scan.teamSize)}
+      ${inputRow('Biggest time sink', scan.timesink)}
+      ${inputRow('Current tools', tools)}
+      ${inputRow('Website', scan.website)}
+    </table>`;
+
+  // Results
+  let resultsHtml = '';
+  if (scan.results) {
+    const r = scan.results;
+    const findings = (r.findings || []).map((f, i) => `
+      <tr><td style="padding:6px 0;border-bottom:1px solid rgba(119,92,191,0.08);">
+        <span style="font-size:13px;color:#f5f3fa;">0${i + 1} · ${e(f.title)}</span><br/>
+        <span style="font-size:11px;color:#9d8fc4;">→ ${e(f.solution)} · ${money(f.amount)}/mo</span>
+      </td></tr>`).join('');
+    resultsHtml = `
+      <p style="margin:0 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:0.10em;color:#775cbf;font-weight:700;">Their scan result · ${money(r.total)}/mo on the table</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">${findings}</table>`;
+  }
+
+  // Website signals
+  let sigHtml = '';
+  if (scan.signals && scan.signals.reachable) {
+    const s = scan.signals;
+    const hasSocial = s.social && Object.values(s.social).some(Boolean);
+    const chip = (name, ok) =>
+      `<span style="display:inline-block;margin:0 4px 4px 0;padding:3px 9px;border-radius:20px;font-size:11px;background:${ok ? 'rgba(0,204,136,0.12)' : 'rgba(239,159,39,0.12)'};color:${ok ? '#00CC88' : '#EF9F27'};">${name}: ${ok ? 'yes' : 'NO'}</span>`;
+    sigHtml = `
+      <p style="margin:0 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:0.10em;color:#775cbf;font-weight:700;">Website signals (auto-detected)</p>
+      <div style="margin-bottom:4px;">
+        ${chip('Meta Pixel', s.metaPixel)}${chip('Google Analytics', s.analytics)}${chip('Email capture', s.emailCapture)}${chip('Social', hasSocial)}
+      </div>`;
+  } else if (scan.signals && !scan.signals.reachable) {
+    sigHtml = `<p style="margin:0 0 6px;font-size:11px;color:#9d8fc4;">Website provided but could not be read (${e(scan.signals.reason || 'unreachable')}).</p>`;
+  }
+
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr><td style="background:#161335;border:1px solid rgba(119,92,191,0.18);border-radius:10px;padding:16px;">
+        <p style="margin:0 0 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#fbae42;font-weight:700;">📋 Scan context (call pre-brief)</p>
+        ${inputs}
+        ${resultsHtml}
+        ${sigHtml}
+      </td></tr>
+    </table>`;
 }
 
 function e(str) {

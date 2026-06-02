@@ -259,6 +259,7 @@
   .impact-stat.total .num { color: var(--purple); }
   .impact-stat .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
   .impact-divider { width: 1px; height: 38px; background: rgba(119,92,191,0.18); }
+  .benchmark-note { max-width: 540px; margin: 14px auto 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); text-align: center; }
 
   .methodology-wrap { max-width: 720px; margin: 0 auto 32px; }
   .methodology-toggle {
@@ -279,6 +280,31 @@
   .methodology-content.open { max-height: 600px; padding: 14px 18px 16px; margin-top: -1px; }
   .methodology-content strong { color: var(--white); font-weight: 600; }
   .methodology-content a { color: var(--purple); text-decoration: none; border-bottom: 1px dotted rgba(119,92,191,0.4); }
+
+  /* ===== WEBSITE SIGNALS ===== */
+  .website-signals {
+    max-width: 720px; margin: 0 auto 28px; padding: 18px 20px;
+    background: linear-gradient(180deg, rgba(45,43,85,0.5), rgba(30,28,63,0.78));
+    border: 1px solid rgba(119,92,191,0.16); border-radius: 14px;
+  }
+  .ws-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .ws-title { font-size: 13px; font-weight: 600; color: var(--white); letter-spacing: -0.01em; }
+  .ws-sub { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .ws-url { font-size: 11px; color: var(--purple); font-family: 'JetBrains Mono', monospace; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+  .ws-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .ws-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border-radius: 9px; font-size: 12px; font-weight: 500;
+    background: rgba(30,28,63,0.6); border: 1px solid rgba(255,255,255,0.05);
+  }
+  .ws-item .ws-ic { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
+  .ws-item.ok .ws-ic { background: rgba(0,204,136,0.16); color: var(--green); }
+  .ws-item.no .ws-ic { background: rgba(239,159,39,0.16); color: var(--gold); }
+  .ws-item .ws-name { color: var(--white); }
+  .ws-item .ws-state { margin-left: auto; font-size: 10px; font-family: 'JetBrains Mono', monospace; }
+  .ws-item.ok .ws-state { color: var(--green); }
+  .ws-item.no .ws-state { color: var(--gold); }
+  .ws-unreachable { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
 
   .findings { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
   .finding {
@@ -580,6 +606,11 @@
           </div>
         </div>
 
+        <div class="field">
+          <label for="website"><span class="num">05</span><span data-t="label5">Sitio web</span><span class="hint" data-t="label5hint">(opcional, para personalizar)</span></label>
+          <input type="text" id="website" inputmode="url" autocomplete="url" data-t-ph="websitePh" placeholder="tunegocio.com" />
+        </div>
+
         <button type="button" class="btn-hunt" id="huntBtn" onclick="startHunt()">
           <span data-t="btnHunt">Encontrar mis ineficiencias</span>
           <span class="arrow">→</span>
@@ -608,6 +639,7 @@
         <div class="eyebrow"><span class="pulse"></span><span data-t="resultsEyebrow">3 ineficiencias encontradas</span></div>
         <h2 class="results-title" data-t="resultsTitle">Analizamos. Esto es lo que <span class="accent-g">te está costando.</span></h2>
         <div class="impact-summary" id="impactSummary"></div>
+        <p class="benchmark-note" data-t="benchmarkNote">Estas son las fugas más comunes para negocios como el tuyo. Confirmamos exactamente cuáles aplican en tu llamada.</p>
       </div>
 
       <div class="methodology-wrap">
@@ -617,6 +649,8 @@
         </button>
         <div class="methodology-content" id="methContent"></div>
       </div>
+
+      <div class="website-signals" id="websiteSignals" style="display:none;"></div>
 
       <div class="findings" id="findings"></div>
 
@@ -660,6 +694,15 @@ const T = {
     sel3ph: 'Selecciona...',
     label4: 'Herramientas que usas actualmente',
     label4hint: '(toca las que usas)',
+    label5: 'Sitio web',
+    label5hint: '(opcional, para personalizar)',
+    websitePh: 'tunegocio.com',
+    sigTitle: 'Señales de tu sitio web',
+    sigSub: 'Detección automática. Solo hechos, sin opiniones.',
+    sigDetected: 'Detectado',
+    sigMissing: 'No detectado',
+    sigUnreachable: 'No pudimos leer tu sitio. Lo revisamos contigo en la llamada.',
+    sigNames: { metaPixel: 'Meta Pixel', analytics: 'Google Analytics', emailCapture: 'Captura de email', social: 'Redes sociales' },
     toolsEmpty: '↑ Selecciona una industria para ver herramientas comunes',
     customPh: 'Agregar otra herramienta...',
     btnHunt: 'Encontrar mis ineficiencias',
@@ -668,6 +711,7 @@ const T = {
     huntingSub: 'Cruzando datos de salarios mexicanos y benchmarks de la industria',
     resultsEyebrow: '3 ineficiencias de marketing encontradas',
     resultsTitle: 'Analizamos. Esto es lo que <span class="accent-g">te está costando.</span>',
+    benchmarkNote: 'Estas son las fugas más comunes para negocios como el tuyo. Confirmamos exactamente cuáles aplican en tu llamada.',
     wastedLabel: 'Desperdicio / mes',
     missedLabel: 'Ingresos perdidos / mes',
     totalLabel: 'Total en juego',
@@ -692,7 +736,7 @@ const T = {
     contactMessagePh: 'Cuéntanos brevemente...',
     contactSubmit: 'Agendar llamada gratis',
     contactError: 'Error al enviar. Intenta de nuevo.',
-    contactSubject: 'Nuevo contacto — Rünna Inefficiency Hunter',
+    contactSubject: 'Nuevo contacto: Rünna Inefficiency Hunter',
     contactSuccessTitle: '¡Recibido.',
     contactSuccessBody: 'Nils o Pedro te contactarán en las próximas 24 horas.',
     currency: 'MXN',
@@ -718,6 +762,15 @@ const T = {
     sel3ph: 'Select...',
     label4: 'Tools you currently use',
     label4hint: '(tap the ones you use)',
+    label5: 'Website',
+    label5hint: '(optional, to personalize)',
+    websitePh: 'yourbusiness.com',
+    sigTitle: 'Your website signals',
+    sigSub: 'Automatic detection. Just facts, no opinions.',
+    sigDetected: 'Detected',
+    sigMissing: 'Not detected',
+    sigUnreachable: 'We could not read your site. We will review it with you on the call.',
+    sigNames: { metaPixel: 'Meta Pixel', analytics: 'Google Analytics', emailCapture: 'Email capture', social: 'Social media' },
     toolsEmpty: '↑ Select an industry to see common tools',
     customPh: 'Add another tool you use...',
     btnHunt: 'Find my inefficiencies',
@@ -726,6 +779,7 @@ const T = {
     huntingSub: 'Cross-referencing Canadian market data and industry benchmarks',
     resultsEyebrow: '3 marketing gaps found',
     resultsTitle: 'We looked. Here\'s what\'s <span class="accent-g">costing you.</span>',
+    benchmarkNote: 'These are the most common profit leaks for businesses like yours. We confirm exactly which apply to you on the call.',
     wastedLabel: 'Wasted / month',
     missedLabel: 'Missed revenue / month',
     totalLabel: 'Total on the table',
@@ -750,7 +804,7 @@ const T = {
     contactMessagePh: 'Tell us briefly...',
     contactSubmit: 'Book a free call',
     contactError: 'Error sending. Please try again.',
-    contactSubject: 'New contact — Rünna Inefficiency Hunter',
+    contactSubject: 'New contact: Rünna Inefficiency Hunter',
     contactSuccessTitle: 'Got it.',
     contactSuccessBody: 'Nils or Pedro will reach out within 24 hours.',
     currency: 'CAD',
@@ -782,59 +836,59 @@ const MARKET_DATA = {
     },
     ineff: {
       ecommerce: [
-        { match:['social','production'], frame:'cost', title:'Contenido publicado sin calendario ni estrategia', body:'El equipo invierte 6–10 horas semanales creando publicaciones al vuelo sin plantillas ni calendario editorial. Sin sistema, cada post requiere tomar decisiones creativas desde cero, tiempo de marca desperdiciado que podría ir al negocio.', solution:'Calendario de contenido + playbook de marca', hrs:7, rate:'skilled', sourceLabel:'Hootsuite 2024: promedio 6.8 hrs/sem en redes sin sistema', sourceUrl:'https://www.hootsuite.com/resources/social-media-statistics' },
-        { match:['email','leads'], frame:'gain', title:'Sin automatización de email, flujos de carrito abandonado inexistentes', body:'El email marketing tiene el ROI más alto de cualquier canal digital ($36 por cada $1), pero sin automatización sólo envías campañas manuales ocasionales. Los flujos de bienvenida, carrito abandonado y post-compra generan ingresos con cero esfuerzo continuo.', solution:'Automatización de email + plantillas de marca', baseRev:350000, liftPct:0.15, sourceLabel:'Klaviyo 2024: flujos automáticos generan 15-25% más ingresos', sourceUrl:'https://www.klaviyo.com/resources/reports' },
-        { match:['ads','reporting'], frame:'mixed', title:'Sin testing de creativos, un solo anuncio corriendo meses', body:'Las marcas que prueban 5–10 creativos por semana encuentran ganadores que reducen el CPA 20–40%. Estás gastando presupuesto de anuncios sin optimizar el activo más importante: el creativo.', solution:'Pipeline de testing de creativos', hrs:5, rate:'skilled', baseRev:350000, liftPct:0.10, sourceLabel:'Meta Ads: testing creativo reduce CPA 20-40%', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['reporting'], frame:'cost', title:'Datos dispersos en 4 plataformas, sin fuente única de verdad', body:'Shopify, Meta, Google Analytics y WhatsApp mostrando números distintos, ninguno conectado. El tiempo de directores reconciliando reportes manualmente cada semana es tiempo que debería ir al negocio.', solution:'Dashboard de marketing unificado', hrs:4, rate:'senior', sourceLabel:'Finch 2024: 5.5 hrs/sem perdidas en reportes manuales', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' }
+        { match:['social','production'], frame:'cost', title:'Sistema de contenido: donde más horas se van al vuelo', body:'El equipo invierte 6–10 horas semanales creando publicaciones al vuelo sin plantillas ni calendario editorial. Sin sistema, cada post requiere tomar decisiones creativas desde cero, tiempo de marca desperdiciado que podría ir al negocio.', solution:'Calendario de contenido + playbook de marca', hrs:7, rate:'skilled', sourceLabel:'Hootsuite 2024: promedio 6.8 hrs/sem en redes sin sistema', sourceUrl:'https://www.hootsuite.com/resources/social-media-statistics' },
+        { match:['email','leads'], frame:'gain', title:'Automatización de email: el canal de mayor ROI sin explotar', body:'El email marketing tiene el ROI más alto de cualquier canal digital ($36 por cada $1), pero sin automatización sólo envías campañas manuales ocasionales. Los flujos de bienvenida, carrito abandonado y post-compra generan ingresos con cero esfuerzo continuo.', solution:'Automatización de email + plantillas de marca', baseRev:350000, liftPct:0.15, sourceLabel:'Klaviyo 2024: flujos automáticos generan 15-25% más ingresos', sourceUrl:'https://www.klaviyo.com/resources/reports' },
+        { match:['ads','reporting'], frame:'mixed', title:'Testing de creativos: lo que más reduce el costo por adquisición', body:'Las marcas que prueban 5–10 creativos por semana encuentran ganadores que reducen el CPA 20–40%. Estás gastando presupuesto de anuncios sin optimizar el activo más importante: el creativo.', solution:'Pipeline de testing de creativos', hrs:5, rate:'skilled', baseRev:350000, liftPct:0.10, sourceLabel:'Meta Ads: testing creativo reduce CPA 20-40%', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['reporting'], frame:'cost', title:'Datos en una sola vista: horas que se van en reportes manuales', body:'Shopify, Meta, Google Analytics y WhatsApp mostrando números distintos, ninguno conectado. El tiempo de directores reconciliando reportes manualmente cada semana es tiempo que debería ir al negocio.', solution:'Dashboard de marketing unificado', hrs:4, rate:'senior', sourceLabel:'Finch 2024: 5.5 hrs/sem perdidas en reportes manuales', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' }
       ],
       restaurant: [
-        { match:['social','production'], frame:'cost', title:'Redes publicadas cuando alguien se acuerda, no estratégicamente', body:'Sin calendario editorial, sin lineamientos de fotografía, captions escritos al vuelo. Restaurantes que publican consistentemente con estrategia reportan 30–50% más visitas desde redes sociales. Lo estás dejando sobre la mesa.', solution:'Calendario mensual de contenido + plantillas', hrs:8, rate:'admin', sourceLabel:'Sprout Social: publicación consistente = 40% más engagement', sourceUrl:'https://sproutsocial.com/insights/restaurant-social-media/' },
-        { match:['email','leads'], frame:'gain', title:'Sin base de datos de clientes, no los alcanzas entre visitas', body:'Atiendes cientos de personas semanalmente pero no tienes cómo comunicarte con ellos. Un programa de lealtad por WhatsApp o email con actualizaciones mensuales, eventos y ofertas incrementa las visitas repetidas 20–30%.', solution:'Programa de email + estrategia de captura de lealtad', baseRev:700000, liftPct:0.10, sourceLabel:'OpenTable: programas de email = 20-30% más visitas repetidas', sourceUrl:'https://restaurant.opentable.com/resources/' },
-        { match:['ads'], frame:'mixed', title:'Impulsando publicaciones en lugar de campañas reales', body:'"Impulsar publicación" es la forma más cara de hacer publicidad en redes con la peor segmentación. Una estrategia de anuncios pagados con creativos específicos por oferta generalmente produce 3–4× más reservaciones por peso gastado.', solution:'Estrategia de anuncios pagados + creativos', hrs:4, rate:'skilled', baseRev:700000, liftPct:0.05, sourceLabel:'Meta: campañas reales = 3-4× más eficientes que posts impulsados', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['production'], frame:'cost', title:'Fotos y materiales de temporada pedidos desde cero cada vez', body:'Cada menú estacional o evento requiere volver a contratar fotógrafo o diseñador, sin plantillas en archivo. Las marcas con sistema fotográfico y diseño de sistema gastan 60% menos en producción anual.', solution:'Sistema de marca + biblioteca fotográfica', hrs:3, rate:'skilled', sourceLabel:'Promedio industria: 60% reducción de costos con sistema de marca', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' }
+        { match:['social','production'], frame:'cost', title:'Redes con estrategia: visitas que la mayoría deja sobre la mesa', body:'Sin calendario editorial, sin lineamientos de fotografía, captions escritos al vuelo. Restaurantes que publican consistentemente con estrategia reportan 30–50% más visitas desde redes sociales. Lo estás dejando sobre la mesa.', solution:'Calendario mensual de contenido + plantillas', hrs:8, rate:'admin', sourceLabel:'Sprout Social: publicación consistente = 40% más engagement', sourceUrl:'https://sproutsocial.com/insights/restaurant-social-media/' },
+        { match:['email','leads'], frame:'gain', title:'Base de clientes: cómo aumentar las visitas repetidas', body:'Atiendes cientos de personas semanalmente pero no tienes cómo comunicarte con ellos. Un programa de lealtad por WhatsApp o email con actualizaciones mensuales, eventos y ofertas incrementa las visitas repetidas 20–30%.', solution:'Programa de email + estrategia de captura de lealtad', baseRev:700000, liftPct:0.10, sourceLabel:'OpenTable: programas de email = 20-30% más visitas repetidas', sourceUrl:'https://restaurant.opentable.com/resources/' },
+        { match:['ads'], frame:'mixed', title:'Campañas reales vs. impulsar posts: 3-4× más eficiencia', body:'"Impulsar publicación" es la forma más cara de hacer publicidad en redes con la peor segmentación. Una estrategia de anuncios pagados con creativos específicos por oferta generalmente produce 3–4× más reservaciones por peso gastado.', solution:'Estrategia de anuncios pagados + creativos', hrs:4, rate:'skilled', baseRev:700000, liftPct:0.05, sourceLabel:'Meta: campañas reales = 3-4× más eficientes que posts impulsados', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['production'], frame:'cost', title:'Biblioteca de marca: 60% menos costo de producción al año', body:'Cada menú estacional o evento requiere volver a contratar fotógrafo o diseñador, sin plantillas en archivo. Las marcas con sistema fotográfico y diseño de sistema gastan 60% menos en producción anual.', solution:'Sistema de marca + biblioteca fotográfica', hrs:3, rate:'skilled', sourceLabel:'Promedio industria: 60% reducción de costos con sistema de marca', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' }
       ],
       realestate: [
-        { match:['leads','email'], frame:'gain', title:'Leads fríos en el CRM sin ningún seguimiento', body:'Cada evento de ventas o recorrido genera contactos que no vuelven a saber de ti. Una secuencia de email con actualizaciones de mercado te mantiene top-of-mind, el 80% de los compradores terminan con el agente que hizo seguimiento consistente.', solution:'Programa de nurture por email', baseRev:500000, liftPct:0.10, sourceLabel:'NAR: el 80% compra con el agente que hizo seguimiento consistente', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
-        { match:['production','social'], frame:'cost', title:'Contenido de cada propiedad creado desde cero', body:'Cada propiedad requiere 1–2 horas de redacción, edición de fotos y publicaciones en redes. Un sistema de plantillas con IA reduce esto a menos de 20 minutos por propiedad, sin sacrificar calidad.', solution:'Sistema de contenido de propiedades', hrs:5, rate:'skilled', sourceLabel:'Promedio: 45-90 min/propiedad vs. 15 min con sistema', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
-        { match:['social'], frame:'cost', title:'Redes inconsistentes, sin posicionamiento como autoridad local', body:'Publicar solo cuando se cierra una venta no genera confianza. Una estrategia de contenido semanal sobre el mercado local posiciona al agente como experto, quienes lo hacen reportan 25–40% más leads entrantes.', solution:'Estrategia de contenido de autoridad', hrs:4, rate:'senior', sourceLabel:'NAR: contenido consistente = 30% más leads inbound', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
-        { match:['ads'], frame:'gain', title:'Sin estrategia de anuncios segmentada por perfil de comprador', body:'Correr un solo anuncio para todos los compradores desperdicia presupuesto. Segmentar por primera vivienda vs. inversionista vs. reubicación, con mensajes distintos, reduce el costo por lead 25–35%.', solution:'Estrategia de anuncios segmentada', baseRev:500000, liftPct:0.08, sourceLabel:'Meta Ads: segmentación adecuada reduce CPC 25-35%', sourceUrl:'https://www.facebook.com/business/news' }
+        { match:['leads','email'], frame:'gain', title:'Seguimiento de leads: el 80% compra con quien da seguimiento', body:'Cada evento de ventas o recorrido genera contactos que no vuelven a saber de ti. Una secuencia de email con actualizaciones de mercado te mantiene top-of-mind, el 80% de los compradores terminan con el agente que hizo seguimiento consistente.', solution:'Programa de nurture por email', baseRev:500000, liftPct:0.10, sourceLabel:'NAR: el 80% compra con el agente que hizo seguimiento consistente', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
+        { match:['production','social'], frame:'cost', title:'Contenido de propiedades: de 90 min a 15 min con sistema', body:'Cada propiedad requiere 1–2 horas de redacción, edición de fotos y publicaciones en redes. Un sistema de plantillas con IA reduce esto a menos de 20 minutos por propiedad, sin sacrificar calidad.', solution:'Sistema de contenido de propiedades', hrs:5, rate:'skilled', sourceLabel:'Promedio: 45-90 min/propiedad vs. 15 min con sistema', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
+        { match:['social'], frame:'cost', title:'Autoridad local: contenido consistente trae más leads inbound', body:'Publicar solo cuando se cierra una venta no genera confianza. Una estrategia de contenido semanal sobre el mercado local posiciona al agente como experto, quienes lo hacen reportan 25–40% más leads entrantes.', solution:'Estrategia de contenido de autoridad', hrs:4, rate:'senior', sourceLabel:'NAR: contenido consistente = 30% más leads inbound', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
+        { match:['ads'], frame:'gain', title:'Anuncios segmentados por comprador: menor costo por lead', body:'Correr un solo anuncio para todos los compradores desperdicia presupuesto. Segmentar por primera vivienda vs. inversionista vs. reubicación, con mensajes distintos, reduce el costo por lead 25–35%.', solution:'Estrategia de anuncios segmentada', baseRev:500000, liftPct:0.08, sourceLabel:'Meta Ads: segmentación adecuada reduce CPC 25-35%', sourceUrl:'https://www.facebook.com/business/news' }
       ],
       proservices: [
-        { match:['social','production'], frame:'cost', title:'LinkedIn y marketing de contenidos completamente abandonados', body:'Los servicios profesionales se venden con confianza, y la confianza se construye con experiencia visible y consistente. La mayoría publica esporádicamente y se pregunta por qué los referidos no crecen. Un sistema de contenido mantiene tu marca visible con mínimo tiempo.', solution:'Sistema de liderazgo de pensamiento', hrs:5, rate:'senior', sourceLabel:'LinkedIn: liderazgo consistente = 60% más leads', sourceUrl:'https://business.linkedin.com/marketing-solutions/research' },
-        { match:['email','leads'], frame:'gain', title:'Sin programa de referidos, clientes felices no activados', body:'Tus mejores clientes te recomendarían, si fuera fácil. Una secuencia de email de referidos enviada en el momento correcto del ciclo del cliente típicamente genera 15–25% más clientes nuevos de tu base actual.', solution:'Programa de activación de referidos', baseRev:200000, liftPct:0.10, sourceLabel:'HubSpot: el marketing de referidos genera 30% de nuevos clientes', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['reporting','ads'], frame:'mixed', title:'Reportes de clientes hechos a mano, sin demostrar ROI', body:'Horas construyendo decks para demostrar tu valor. Los dashboards de reporteo automatizado permiten enviar resúmenes de ROI mensuales sin trabajo manual, y típicamente mejoran la retención de clientes 15–20%.', solution:'Reporteo automatizado de clientes', hrs:4, rate:'skilled', baseRev:200000, liftPct:0.07, sourceLabel:'Benchmark de agencias: reporteo automatizado = 18% más retención', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['leads','ads'], frame:'gain', title:'Sin Google Ads ni SEO, invisible para quien ya busca tus servicios', body:'"Contador en CDMX" o "abogado corporativo Guadalajara", esas búsquedas ocurren cada día. La mayoría de las firmas no tienen presencia en búsquedas. Son compradores listos que te están buscando, y encuentran a la competencia.', solution:'Estrategia de búsqueda + Google Ads', baseRev:200000, liftPct:0.12, sourceLabel:'Google: 70% de la investigación de servicios empieza con búsqueda', sourceUrl:'https://www.thinkwithgoogle.com/' }
+        { match:['social','production'], frame:'cost', title:'Liderazgo en LinkedIn: más leads con poco tiempo invertido', body:'Los servicios profesionales se venden con confianza, y la confianza se construye con experiencia visible y consistente. La mayoría publica esporádicamente y se pregunta por qué los referidos no crecen. Un sistema de contenido mantiene tu marca visible con mínimo tiempo.', solution:'Sistema de liderazgo de pensamiento', hrs:5, rate:'senior', sourceLabel:'LinkedIn: liderazgo consistente = 60% más leads', sourceUrl:'https://business.linkedin.com/marketing-solutions/research' },
+        { match:['email','leads'], frame:'gain', title:'Programa de referidos: activar a tus clientes felices', body:'Tus mejores clientes te recomendarían, si fuera fácil. Una secuencia de email de referidos enviada en el momento correcto del ciclo del cliente típicamente genera 15–25% más clientes nuevos de tu base actual.', solution:'Programa de activación de referidos', baseRev:200000, liftPct:0.10, sourceLabel:'HubSpot: el marketing de referidos genera 30% de nuevos clientes', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['reporting','ads'], frame:'mixed', title:'Reportes automatizados: demostrar ROI y retener más clientes', body:'Horas construyendo decks para demostrar tu valor. Los dashboards de reporteo automatizado permiten enviar resúmenes de ROI mensuales sin trabajo manual, y típicamente mejoran la retención de clientes 15–20%.', solution:'Reporteo automatizado de clientes', hrs:4, rate:'skilled', baseRev:200000, liftPct:0.07, sourceLabel:'Benchmark de agencias: reporteo automatizado = 18% más retención', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['leads','ads'], frame:'gain', title:'Búsqueda y Google Ads: clientes que ya te están buscando', body:'"Contador en CDMX" o "abogado corporativo Guadalajara", esas búsquedas ocurren cada día. La mayoría de las firmas no tienen presencia en búsquedas. Son compradores listos que te están buscando, y encuentran a la competencia.', solution:'Estrategia de búsqueda + Google Ads', baseRev:200000, liftPct:0.12, sourceLabel:'Google: 70% de la investigación de servicios empieza con búsqueda', sourceUrl:'https://www.thinkwithgoogle.com/' }
       ],
       retail: [
-        { match:['social','production'], frame:'cost', title:'Sin sistema de contenido de marca, cada post creado desde cero', body:'Una marca retail debería publicar 5–7 veces por semana con voz de marca, fotografía y plantillas consistentes. La mayoría invierte 10+ horas semanales reinventando cada post en lugar de trabajar con un sistema.', solution:'Sistema de contenido de marca + plantillas', hrs:8, rate:'skilled', sourceLabel:'Sprout Social: sistemas de contenido reducen tiempo de creación 60-70%', sourceUrl:'https://sproutsocial.com/insights/' },
-        { match:['email','leads'], frame:'gain', title:'Lista de email sin segmentar, el mismo mensaje para todos', body:'Las listas de email retail tienen 3–5 segmentos distintos con motivaciones diferentes. Las campañas segmentadas generan 2–3× más ingresos por email que los envíos genéricos.', solution:'Segmentación de email + automatización', baseRev:280000, liftPct:0.14, sourceLabel:'Klaviyo: emails segmentados generan 2-3× más ingresos', sourceUrl:'https://www.klaviyo.com/resources/reports' },
-        { match:['ads'], frame:'mixed', title:'Creativos de anuncios sólo con fotos de producto', body:'El contenido lifestyle, UGC y video supera a las fotos de producto estáticas 2–4×. La mayoría de las marcas no tiene estrategia de UGC ni video, están pagando por anuncios que no optimizan.', solution:'Estrategia creativa + programa de UGC', hrs:4, rate:'skilled', baseRev:280000, liftPct:0.10, sourceLabel:'Meta: UGC/video supera estáticos 2-4× en ROAS', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['reporting'], frame:'cost', title:'Sin modelo de atribución, sin saber qué canal funciona', body:'Gastando en Meta, TikTok y Google sin saber qué genera ventas reales. Un setup de atribución adecuado ahorra 15–25% del presupuesto anual al identificar qué canales no están rindiendo.', solution:'Dashboard de atribución de marketing', hrs:4, rate:'senior', sourceLabel:'Nielsen: atribución correcta ahorra 15-25% del presupuesto', sourceUrl:'https://www.nielsen.com/insights/' }
+        { match:['social','production'], frame:'cost', title:'Sistema de marca: 50% menos tiempo y más consistencia', body:'Una marca retail debería publicar 5–7 veces por semana con voz de marca, fotografía y plantillas consistentes. La mayoría invierte 10+ horas semanales reinventando cada post en lugar de trabajar con un sistema.', solution:'Sistema de contenido de marca + plantillas', hrs:8, rate:'skilled', sourceLabel:'Sprout Social: sistemas de contenido reducen tiempo de creación 60-70%', sourceUrl:'https://sproutsocial.com/insights/' },
+        { match:['email','leads'], frame:'gain', title:'Segmentación de email: 2-3× más ingresos por envío', body:'Las listas de email retail tienen 3–5 segmentos distintos con motivaciones diferentes. Las campañas segmentadas generan 2–3× más ingresos por email que los envíos genéricos.', solution:'Segmentación de email + automatización', baseRev:280000, liftPct:0.14, sourceLabel:'Klaviyo: emails segmentados generan 2-3× más ingresos', sourceUrl:'https://www.klaviyo.com/resources/reports' },
+        { match:['ads'], frame:'mixed', title:'Creativos lifestyle y UGC: 2-4× mejor que fotos de producto', body:'El contenido lifestyle, UGC y video supera a las fotos de producto estáticas 2–4×. La mayoría de las marcas no tiene estrategia de UGC ni video, están pagando por anuncios que no optimizan.', solution:'Estrategia creativa + programa de UGC', hrs:4, rate:'skilled', baseRev:280000, liftPct:0.10, sourceLabel:'Meta: UGC/video supera estáticos 2-4× en ROAS', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['reporting'], frame:'cost', title:'Modelo de atribución: 15-25% del presupuesto en juego', body:'Gastando en Meta, TikTok y Google sin saber qué genera ventas reales. Un setup de atribución adecuado ahorra 15–25% del presupuesto anual al identificar qué canales no están rindiendo.', solution:'Dashboard de atribución de marketing', hrs:4, rate:'senior', sourceLabel:'Nielsen: atribución correcta ahorra 15-25% del presupuesto', sourceUrl:'https://www.nielsen.com/insights/' }
       ],
       automotive: [
-        { match:['leads','ads'], frame:'gain', title:'Sin estrategia digital para captura de leads de compradores', body:'La mayoría de los distribuidores dependen de tráfico peatonal y referidos. Una estrategia de anuncios en Meta y Google con landing pages de oferta específica genera 25–40% más leads calificados mensualmente.', solution:'Estrategia de leads digitales + landing pages', baseRev:1200000, liftPct:0.08, sourceLabel:'Google: 90% de los compradores investigan en línea antes de visitar', sourceUrl:'https://www.thinkwithgoogle.com/' },
-        { match:['social','production'], frame:'cost', title:'Contenido digital sin estrategia de marca consistente', body:'El contenido del distribuidor publicado sin lineamientos de marca genera desconfianza. Un sistema de templates para precios, videos de unidades y testimoniales reduce el tiempo de producción 60% y mejora la percepción de marca.', solution:'Sistema de contenido de marca automotriz', hrs:8, rate:'skilled', sourceLabel:'CDK Global: distribuidores con contenido consistente = 30% más consultas', sourceUrl:'https://www.cdkglobal.com/insights' },
-        { match:['email','reporting'], frame:'mixed', title:'Sin seguimiento post-venta, clientes que compraron no se re-activan', body:'Un cliente que ya compró un auto tiene 4× más probabilidades de volver que un prospecto frío. Sin una secuencia de email de servicios, aniversario de compra y nuevos modelos, estás regalando esa venta a otro distribuidor.', solution:'Programa de retención post-venta', hrs:3, rate:'skilled', baseRev:1200000, liftPct:0.05, sourceLabel:'CDK Global: programas de retención = 20% más servicios y recompras', sourceUrl:'https://www.cdkglobal.com/insights' },
-        { match:['ads'], frame:'gain', title:'Anuncios digitales sin segmentación por modelo o perfil de comprador', body:'El comprador de una pickup de trabajo tiene motivaciones completamente distintas al comprador de un SUV familiar. Segmentar por perfil y usar mensajes específicos reduce el costo por lead 30–40%.', solution:'Anuncios segmentados por perfil de comprador', baseRev:1200000, liftPct:0.06, sourceLabel:'Meta Ads: segmentación automotriz reduce CPL 30-40%', sourceUrl:'https://www.facebook.com/business/news' }
+        { match:['leads','ads'], frame:'gain', title:'Captura digital de leads: más prospectos calificados al mes', body:'La mayoría de los distribuidores dependen de tráfico peatonal y referidos. Una estrategia de anuncios en Meta y Google con landing pages de oferta específica genera 25–40% más leads calificados mensualmente.', solution:'Estrategia de leads digitales + landing pages', baseRev:1200000, liftPct:0.08, sourceLabel:'Google: 90% de los compradores investigan en línea antes de visitar', sourceUrl:'https://www.thinkwithgoogle.com/' },
+        { match:['social','production'], frame:'cost', title:'Marca consistente: más confianza y más consultas', body:'El contenido del distribuidor publicado sin lineamientos de marca genera desconfianza. Un sistema de templates para precios, videos de unidades y testimoniales reduce el tiempo de producción 60% y mejora la percepción de marca.', solution:'Sistema de contenido de marca automotriz', hrs:8, rate:'skilled', sourceLabel:'CDK Global: distribuidores con contenido consistente = 30% más consultas', sourceUrl:'https://www.cdkglobal.com/insights' },
+        { match:['email','reporting'], frame:'mixed', title:'Retención post-venta: recompras y servicio que se dejan ir', body:'Un cliente que ya compró un auto tiene 4× más probabilidades de volver que un prospecto frío. Sin una secuencia de email de servicios, aniversario de compra y nuevos modelos, estás regalando esa venta a otro distribuidor.', solution:'Programa de retención post-venta', hrs:3, rate:'skilled', baseRev:1200000, liftPct:0.05, sourceLabel:'CDK Global: programas de retención = 20% más servicios y recompras', sourceUrl:'https://www.cdkglobal.com/insights' },
+        { match:['ads'], frame:'gain', title:'Anuncios por perfil de comprador: 30-40% menor costo por lead', body:'El comprador de una pickup de trabajo tiene motivaciones completamente distintas al comprador de un SUV familiar. Segmentar por perfil y usar mensajes específicos reduce el costo por lead 30–40%.', solution:'Anuncios segmentados por perfil de comprador', baseRev:1200000, liftPct:0.06, sourceLabel:'Meta Ads: segmentación automotriz reduce CPL 30-40%', sourceUrl:'https://www.facebook.com/business/news' }
       ],
       hospitality: [
-        { match:['leads','ads'], frame:'gain', title:'Comisiones de OTA comiendo el margen: sin estrategia de reserva directa', body:'Booking.com y Expedia cobran 15–30% de comisión por reservación; una reserva directa cuesta cerca del 4.5%. Sin una estrategia para mover huéspedes a tu canal propio, regalas margen cada mes. Recuperar incluso una parte de esas reservas a directo es dinero puro.', solution:'Estrategia de reserva directa + sitio propio optimizado', baseRev:600000, liftPct:0.12, sourceLabel:'Industria hotelera: comisión OTA 15-30% vs. ~4.5% en reserva directa', sourceUrl:'https://hospitalityinsights.ehl.edu/hotel-otas' },
-        { match:['email','leads'], frame:'gain', title:'Sin email a huéspedes pasados: cero reservas de regreso', body:'Un huésped que ya se hospedó contigo es tu reserva más barata, pero la mayoría de los hoteles no tiene forma de contactarlo. Una secuencia de email con ofertas de temporada y recordatorios de regreso recupera reservas directas sin pagar comisión.', solution:'Programa de email a huéspedes + automatización de retorno', baseRev:600000, liftPct:0.08, sourceLabel:'Resorts: email a huéspedes pasados recupera reservas a comisión cero', sourceUrl:'https://www.americasgreatresorts.net/how-luxury-resorts-reduce-ota-dependence-with-email-marketing-the-real-roi-of-direct-booking-strategy/' },
-        { match:['social','production'], frame:'cost', title:'Contenido publicado sin sistema: fotos y captions al vuelo', body:'Cada temporada, evento o paquete nuevo se produce desde cero, sin plantillas ni biblioteca fotográfica de marca. Los hoteles con sistema de contenido gastan 60% menos en producción anual y publican con una identidad consistente que el viajero recuerda.', solution:'Sistema de marca + biblioteca de contenido hotelero', hrs:7, rate:'skilled', sourceLabel:'Promedio industria: 60% menos costo de producción con sistema de marca', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' },
-        { match:['ads','social'], frame:'mixed', title:'Anuncios sin segmentar por tipo de viajero', body:'El viajero de luna de miel, el de negocios y la familia tienen motivaciones completamente distintas, pero la mayoría de los hoteles corre un solo anuncio genérico. Segmentar por tipo de viajero con mensaje e imagen específicos reduce el costo por reserva 25–40%.', solution:'Estrategia de anuncios segmentada por tipo de viajero', hrs:4, rate:'skilled', baseRev:600000, liftPct:0.06, sourceLabel:'Meta Ads: segmentación adecuada reduce costo por conversión 25-40%', sourceUrl:'https://www.facebook.com/business/news' }
+        { match:['leads','ads'], frame:'gain', title:'Reserva directa vs. OTAs: recuperar margen de comisiones', body:'Booking.com y Expedia cobran 15–30% de comisión por reservación; una reserva directa cuesta cerca del 4.5%. Sin una estrategia para mover huéspedes a tu canal propio, regalas margen cada mes. Recuperar incluso una parte de esas reservas a directo es dinero puro.', solution:'Estrategia de reserva directa + sitio propio optimizado', baseRev:600000, liftPct:0.12, sourceLabel:'Industria hotelera: comisión OTA 15-30% vs. ~4.5% en reserva directa', sourceUrl:'https://hospitalityinsights.ehl.edu/hotel-otas' },
+        { match:['email','leads'], frame:'gain', title:'Email a huéspedes pasados: reservas de regreso sin comisión', body:'Un huésped que ya se hospedó contigo es tu reserva más barata, pero la mayoría de los hoteles no tiene forma de contactarlo. Una secuencia de email con ofertas de temporada y recordatorios de regreso recupera reservas directas sin pagar comisión.', solution:'Programa de email a huéspedes + automatización de retorno', baseRev:600000, liftPct:0.08, sourceLabel:'Resorts: email a huéspedes pasados recupera reservas a comisión cero', sourceUrl:'https://www.americasgreatresorts.net/how-luxury-resorts-reduce-ota-dependence-with-email-marketing-the-real-roi-of-direct-booking-strategy/' },
+        { match:['social','production'], frame:'cost', title:'Sistema de contenido hotelero: 60% menos costo de producción', body:'Cada temporada, evento o paquete nuevo se produce desde cero, sin plantillas ni biblioteca fotográfica de marca. Los hoteles con sistema de contenido gastan 60% menos en producción anual y publican con una identidad consistente que el viajero recuerda.', solution:'Sistema de marca + biblioteca de contenido hotelero', hrs:7, rate:'skilled', sourceLabel:'Promedio industria: 60% menos costo de producción con sistema de marca', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' },
+        { match:['ads','social'], frame:'mixed', title:'Anuncios por tipo de viajero: 25-40% menor costo por reserva', body:'El viajero de luna de miel, el de negocios y la familia tienen motivaciones completamente distintas, pero la mayoría de los hoteles corre un solo anuncio genérico. Segmentar por tipo de viajero con mensaje e imagen específicos reduce el costo por reserva 25–40%.', solution:'Estrategia de anuncios segmentada por tipo de viajero', hrs:4, rate:'skilled', baseRev:600000, liftPct:0.06, sourceLabel:'Meta Ads: segmentación adecuada reduce costo por conversión 25-40%', sourceUrl:'https://www.facebook.com/business/news' }
       ],
       fitness: [
-        { match:['leads','email'], frame:'gain', title:'Miembros en prueba sin conversión estructurada', body:'Los prospectos en periodo de prueba tienen una ventana de 30–60 días donde el seguimiento personalizado convierte 15–25% más a membresías pagadas. La mayoría de los gyms depende de mensajes genéricos de WhatsApp o ninguno.', solution:'Secuencia de nurture de prueba-a-miembro', baseRev:150000, liftPct:0.15, sourceLabel:'Mindbody: nurture estructurado convierte 20% más miembros de prueba', sourceUrl:'https://www.mindbodyonline.com/business/education/' },
-        { match:['social','production'], frame:'cost', title:'Contenido en redes sin historias de transformación', body:'Los antes-y-después y testimoniales de miembros son el contenido de mayor rendimiento en fitness, pero la mayoría publica tips genéricos. Un sistema centrado en historias de transformación duplica el engagement.', solution:'Sistema de contenido de historias de miembros', hrs:6, rate:'skilled', sourceLabel:'Instagram: contenido de transformación = 2× más engagement en fitness', sourceUrl:'https://business.instagram.com/resources/' },
-        { match:['ads'], frame:'gain', title:'Anuncios de alcance amplio en lugar de radio local ajustado', body:'Los negocios de fitness ganan en un radio de 5km. La mayoría corre anuncios de ciudad o región y desperdicia presupuesto. Anuncios geo-segmentados con oferta específica reducen el costo por lead 35–45%.', solution:'Estrategia de anuncios de radio local', baseRev:150000, liftPct:0.12, sourceLabel:'Meta: campañas locales = 35% menor CPL vs. alcance amplio', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['reporting','production'], frame:'cost', title:'Comunicación de horarios y eventos inconsistente', body:'Cambios de horario, nuevos programas y eventos comunicados por WhatsApp grupal o story, sin plantillas de marca, sin email consistente. Los miembros se pierden cosas. Los miembros se van.', solution:'Sistema de comunicación con miembros', hrs:4, rate:'admin', sourceLabel:'Mindbody: comunicación estructurada = 15% menos churn', sourceUrl:'https://www.mindbodyonline.com/business/education/' }
+        { match:['leads','email'], frame:'gain', title:'Conversión de prueba a miembro: 15-25% más con seguimiento', body:'Los prospectos en periodo de prueba tienen una ventana de 30–60 días donde el seguimiento personalizado convierte 15–25% más a membresías pagadas. La mayoría de los gyms depende de mensajes genéricos de WhatsApp o ninguno.', solution:'Secuencia de nurture de prueba-a-miembro', baseRev:150000, liftPct:0.15, sourceLabel:'Mindbody: nurture estructurado convierte 20% más miembros de prueba', sourceUrl:'https://www.mindbodyonline.com/business/education/' },
+        { match:['social','production'], frame:'cost', title:'Historias de transformación: 2× más engagement en fitness', body:'Los antes-y-después y testimoniales de miembros son el contenido de mayor rendimiento en fitness, pero la mayoría publica tips genéricos. Un sistema centrado en historias de transformación duplica el engagement.', solution:'Sistema de contenido de historias de miembros', hrs:6, rate:'skilled', sourceLabel:'Instagram: contenido de transformación = 2× más engagement en fitness', sourceUrl:'https://business.instagram.com/resources/' },
+        { match:['ads'], frame:'gain', title:'Anuncios de radio local: 35-45% menor costo por lead', body:'Los negocios de fitness ganan en un radio de 5km. La mayoría corre anuncios de ciudad o región y desperdicia presupuesto. Anuncios geo-segmentados con oferta específica reducen el costo por lead 35–45%.', solution:'Estrategia de anuncios de radio local', baseRev:150000, liftPct:0.12, sourceLabel:'Meta: campañas locales = 35% menor CPL vs. alcance amplio', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['reporting','production'], frame:'cost', title:'Comunicación con miembros: menos bajas por información perdida', body:'Cambios de horario, nuevos programas y eventos comunicados por WhatsApp grupal o story, sin plantillas de marca, sin email consistente. Los miembros se pierden cosas. Los miembros se van.', solution:'Sistema de comunicación con miembros', hrs:4, rate:'admin', sourceLabel:'Mindbody: comunicación estructurada = 15% menos churn', sourceUrl:'https://www.mindbodyonline.com/business/education/' }
       ],
       other: [
-        { match:['social','production'], frame:'cost', title:'Sin sistema de marca, contenido creado por instinto, no estrategia', body:'Sin guía de voz de marca, calendario de contenidos y plantillas visuales, cada post es una decisión creativa nueva. Las empresas con sistema documentado de contenido gastan 50% menos tiempo y obtienen 35% más engagement consistente.', solution:'Sistema de marca + estrategia de contenido', hrs:6, rate:'skilled', sourceLabel:'HubSpot: estrategia de contenido documentada = 313% más tráfico', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['email','leads'], frame:'gain', title:'Lista de email sin monetizar, sin automatización ni nurture', body:'El email marketing tiene el ROI más alto ($36 por cada $1 gastado), pero la mayoría de las PyMEs solo envían campañas irregulares. Una secuencia automatizada básica convierte 12–20% más leads de tu lista actual.', solution:'Sistema de email marketing', baseRev:250000, liftPct:0.12, sourceLabel:'DMA: ROI de email = $36 por cada $1 gastado en promedio', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['ads','reporting'], frame:'mixed', title:'Gasto en anuncios sin atribución, sin saber qué funciona', body:'Correr anuncios en Meta, TikTok o Google sin modelo de atribución claro significa que no puedes optimizar. Las empresas que configuran tracking correcto típicamente encuentran que 20–30% de su presupuesto va a campañas que no rinden.', solution:'Atribución de marketing + optimización', hrs:4, rate:'senior', baseRev:250000, liftPct:0.08, sourceLabel:'Nielsen: atribución correcta ahorra 15-25% del presupuesto', sourceUrl:'https://www.nielsen.com/insights/' },
-        { match:['leads'], frame:'gain', title:'Sin nurture de leads, consultas que no cierran inmediatamente se enfrían', body:'La mayoría de las ventas ocurren después de 5+ puntos de contacto, pero la mayoría de las empresas da seguimiento una o dos veces. Una secuencia automatizada mantiene al prospecto activo hasta que esté listo, eleva las tasas de cierre 15–25%.', solution:'Automatización de nurture de leads', baseRev:250000, liftPct:0.10, sourceLabel:'HubSpot: nurture de leads genera 50% más leads listos para venta', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['reporting'], frame:'cost', title:'Sin dashboard de marketing, decisiones basadas en intuición', body:'Sin una vista en tiempo real de qué está generando resultados, no puedes tomar decisiones rápidas. Un dashboard construido desde tus herramientas actuales elimina el reporteo manual y entrega insights en tiempo real.', solution:'Dashboard de marketing personalizado', hrs:5, rate:'senior', sourceLabel:'Finch: 5.5 hrs/sem perdidas en reportes manuales', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' }
+        { match:['social','production'], frame:'cost', title:'Sistema de marca y contenido: más tráfico con estrategia', body:'Sin guía de voz de marca, calendario de contenidos y plantillas visuales, cada post es una decisión creativa nueva. Las empresas con sistema documentado de contenido gastan 50% menos tiempo y obtienen 35% más engagement consistente.', solution:'Sistema de marca + estrategia de contenido', hrs:6, rate:'skilled', sourceLabel:'HubSpot: estrategia de contenido documentada = 313% más tráfico', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['email','leads'], frame:'gain', title:'Email marketing: el canal de mayor ROI sin explotar', body:'El email marketing tiene el ROI más alto ($36 por cada $1 gastado), pero la mayoría de las PyMEs solo envían campañas irregulares. Una secuencia automatizada básica convierte 12–20% más leads de tu lista actual.', solution:'Sistema de email marketing', baseRev:250000, liftPct:0.12, sourceLabel:'DMA: ROI de email = $36 por cada $1 gastado en promedio', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['ads','reporting'], frame:'mixed', title:'Atribución de anuncios: 20-30% del gasto sin optimizar', body:'Correr anuncios en Meta, TikTok o Google sin modelo de atribución claro significa que no puedes optimizar. Las empresas que configuran tracking correcto típicamente encuentran que 20–30% de su presupuesto va a campañas que no rinden.', solution:'Atribución de marketing + optimización', hrs:4, rate:'senior', baseRev:250000, liftPct:0.08, sourceLabel:'Nielsen: atribución correcta ahorra 15-25% del presupuesto', sourceUrl:'https://www.nielsen.com/insights/' },
+        { match:['leads'], frame:'gain', title:'Nurture de leads: 15-25% más cierres con seguimiento', body:'La mayoría de las ventas ocurren después de 5+ puntos de contacto, pero la mayoría de las empresas da seguimiento una o dos veces. Una secuencia automatizada mantiene al prospecto activo hasta que esté listo, eleva las tasas de cierre 15–25%.', solution:'Automatización de nurture de leads', baseRev:250000, liftPct:0.10, sourceLabel:'HubSpot: nurture de leads genera 50% más leads listos para venta', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['reporting'], frame:'cost', title:'Dashboard de marketing: decisiones con datos en tiempo real', body:'Sin una vista en tiempo real de qué está generando resultados, no puedes tomar decisiones rápidas. Un dashboard construido desde tus herramientas actuales elimina el reporteo manual y entrega insights en tiempo real.', solution:'Dashboard de marketing personalizado', hrs:5, rate:'senior', sourceLabel:'Finch: 5.5 hrs/sem perdidas en reportes manuales', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' }
       ]
     }
   },
@@ -853,59 +907,59 @@ const MARKET_DATA = {
     },
     ineff: {
       ecommerce: [
-        { match:['social','production'], frame:'cost', title:'Social content created post-by-post, no system', body:'Founders or a single team member batch-writing captions, sourcing photos, and posting manually, no editorial calendar, no brand templates. Most e-commerce brands lose 6–10 hours/week on this with zero consistency to show for it.', solution:'AI content calendar + brand playbook', hrs:7, rate:'skilled', sourceLabel:'Hootsuite 2024: avg 6.8 hrs/wk on social media management', sourceUrl:'https://www.hootsuite.com/resources/social-media-statistics' },
-        { match:['email','leads'], frame:'gain', title:'No email automation, welcome & abandoned cart flows missing', body:'The #1 ROI channel in e-commerce is email, but most stores only send occasional blasts. Automated welcome, abandon cart, and post-purchase flows consistently lift revenue 15–25% with zero ongoing effort.', solution:'Email automation build + brand templates', baseRev:25000, liftPct:0.15, sourceLabel:'Klaviyo 2024: automated flows avg 15-25% revenue lift', sourceUrl:'https://www.klaviyo.com/resources/reports' },
-        { match:['ads','reporting'], frame:'mixed', title:'Ad creative produced slowly, testing nothing', body:'One or two ad creatives running for months with no testing. Brands that test 5–10 creatives per week find winners that cut CPAs by 20–40%. You\'re spending ad budget without optimizing.', solution:'Creative testing pipeline', hrs:5, rate:'skilled', baseRev:25000, liftPct:0.10, sourceLabel:'Meta Ads: creative testing reduces CPA 20-40%', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['reporting'], frame:'cost', title:'Analytics across 4 platforms, no single source of truth', body:'Shopify, Meta, Google Analytics, Klaviyo, all showing different numbers, none connected. Senior time wasted manually reconciling reports every week.', solution:'Unified marketing dashboard', hrs:4, rate:'senior', sourceLabel:'Finch 2024: 5.5 hrs/wk lost to manual reporting', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' }
+        { match:['social','production'], frame:'cost', title:'Content system: where teams lose the most hours', body:'Founders or a single team member batch-writing captions, sourcing photos, and posting manually, no editorial calendar, no brand templates. Most e-commerce brands lose 6–10 hours/week on this with zero consistency to show for it.', solution:'AI content calendar + brand playbook', hrs:7, rate:'skilled', sourceLabel:'Hootsuite 2024: avg 6.8 hrs/wk on social media management', sourceUrl:'https://www.hootsuite.com/resources/social-media-statistics' },
+        { match:['email','leads'], frame:'gain', title:'Email automation: the highest-ROI channel most stores underuse', body:'The #1 ROI channel in e-commerce is email, but most stores only send occasional blasts. Automated welcome, abandon cart, and post-purchase flows consistently lift revenue 15–25% with zero ongoing effort.', solution:'Email automation build + brand templates', baseRev:25000, liftPct:0.15, sourceLabel:'Klaviyo 2024: automated flows avg 15-25% revenue lift', sourceUrl:'https://www.klaviyo.com/resources/reports' },
+        { match:['ads','reporting'], frame:'mixed', title:'Creative testing: the biggest lever on ad cost-per-acquisition', body:'One or two ad creatives running for months with no testing. Brands that test 5–10 creatives per week find winners that cut CPAs by 20–40%. You\'re spending ad budget without optimizing.', solution:'Creative testing pipeline', hrs:5, rate:'skilled', baseRev:25000, liftPct:0.10, sourceLabel:'Meta Ads: creative testing reduces CPA 20-40%', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['reporting'], frame:'cost', title:'One source of truth: hours lost to manual reporting', body:'Shopify, Meta, Google Analytics, Klaviyo, all showing different numbers, none connected. Senior time wasted manually reconciling reports every week.', solution:'Unified marketing dashboard', hrs:4, rate:'senior', sourceLabel:'Finch 2024: 5.5 hrs/wk lost to manual reporting', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' }
       ],
       restaurant: [
-        { match:['social','production'], frame:'cost', title:'Social posted when someone remembers, not strategically', body:'No editorial calendar, no brand guidelines for photography, captions written on the fly. Restaurants posting consistently with a strategy see 30–50% more foot traffic from social. You\'re leaving that on the table.', solution:'Monthly content calendar + brand templates', hrs:8, rate:'admin', sourceLabel:'Sprout Social: consistent posting = 40% higher engagement rate', sourceUrl:'https://sproutsocial.com/insights/restaurant-social-media/' },
-        { match:['email','leads'], frame:'gain', title:'No email list, regulars never hear from you between visits', body:'You serve 200+ people weekly but have no way to reach them. A basic loyalty email program with monthly updates, events, and offers typically lifts return visits 20–30% from existing customers.', solution:'Email program + loyalty capture strategy', baseRev:60000, liftPct:0.12, sourceLabel:'OpenTable: email programs drive 20-30% return visit lift', sourceUrl:'https://restaurant.opentable.com/resources/' },
-        { match:['ads'], frame:'mixed', title:'Running boosted posts, not actual campaign strategy', body:'"Boosting" Instagram posts is the most expensive way to run social ads with the worst targeting. A proper paid strategy with offer-specific creative typically generates 3–4× more reservations per dollar spent.', solution:'Paid social strategy + creative', hrs:4, rate:'skilled', baseRev:60000, liftPct:0.06, sourceLabel:'Meta Ads: campaign ads avg 3-4× more efficient than boosted posts', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['production'], frame:'cost', title:'Menu photos and seasonal assets outsourced every time', body:'Every seasonal menu or event requires going back to a photographer or designer, with no brand templates on file. Brands with a photo library and design system spend 60% less on production costs annually.', solution:'Brand system + photo library', hrs:3, rate:'skilled', sourceLabel:'Industry avg: 60% production cost reduction with brand templates', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' }
+        { match:['social','production'], frame:'cost', title:'Strategic social: visits most restaurants leave on the table', body:'No editorial calendar, no brand guidelines for photography, captions written on the fly. Restaurants posting consistently with a strategy see 30–50% more foot traffic from social. You\'re leaving that on the table.', solution:'Monthly content calendar + brand templates', hrs:8, rate:'admin', sourceLabel:'Sprout Social: consistent posting = 40% higher engagement rate', sourceUrl:'https://sproutsocial.com/insights/restaurant-social-media/' },
+        { match:['email','leads'], frame:'gain', title:'Customer list: how to drive more repeat visits', body:'You serve 200+ people weekly but have no way to reach them. A basic loyalty email program with monthly updates, events, and offers typically lifts return visits 20–30% from existing customers.', solution:'Email program + loyalty capture strategy', baseRev:60000, liftPct:0.12, sourceLabel:'OpenTable: email programs drive 20-30% return visit lift', sourceUrl:'https://restaurant.opentable.com/resources/' },
+        { match:['ads'], frame:'mixed', title:'Real campaigns vs. boosted posts: 3-4× more efficient', body:'"Boosting" Instagram posts is the most expensive way to run social ads with the worst targeting. A proper paid strategy with offer-specific creative typically generates 3–4× more reservations per dollar spent.', solution:'Paid social strategy + creative', hrs:4, rate:'skilled', baseRev:60000, liftPct:0.06, sourceLabel:'Meta Ads: campaign ads avg 3-4× more efficient than boosted posts', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['production'], frame:'cost', title:'Brand asset library: 60% lower production cost per year', body:'Every seasonal menu or event requires going back to a photographer or designer, with no brand templates on file. Brands with a photo library and design system spend 60% less on production costs annually.', solution:'Brand system + photo library', hrs:3, rate:'skilled', sourceLabel:'Industry avg: 60% production cost reduction with brand templates', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' }
       ],
       realestate: [
-        { match:['leads','email'], frame:'gain', title:'Cold leads going stale with zero nurture', body:'Every open house generates leads that hear nothing for months. A market-update email sequence keeps you top-of-mind, 80% of buyers eventually buy, but from the agent who stayed in touch. Even a 3% conversion lift on a stale list is a closed deal.', solution:'Lead nurture email program', baseRev:30000, liftPct:0.12, sourceLabel:'NAR: 80% of buyers bought from the agent who followed up consistently', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
-        { match:['production','social'], frame:'cost', title:'Listing content written from scratch every time', body:'Every new listing means 1–2 hours of writing, resizing photos, and creating social posts. A brand system with AI-assisted listing templates cuts this to under 20 minutes per listing.', solution:'Listing content system', hrs:5, rate:'skilled', sourceLabel:'Avg: 45-90 min/listing manually vs. 15 min with a content system', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
-        { match:['social','reporting'], frame:'cost', title:'Social media inconsistent, no market authority built', body:'Posting only when you close a deal doesn\'t build trust. A weekly market update or neighbourhood insight strategy positions you as the local expert, agents doing this report 25–40% more inbound leads.', solution:'Authority content strategy', hrs:4, rate:'senior', sourceLabel:'NAR Digital Marketing Report: consistent content = 30% more inbound', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
-        { match:['ads'], frame:'gain', title:'Running ads with no buyer-profile segmentation', body:'Running a single ad for every buyer wastes budget. Testing buyer vs. seller messaging, neighbourhood specificity, and offer types typically cuts lead cost by 25–35%.', solution:'Paid ads creative testing', baseRev:30000, liftPct:0.10, sourceLabel:'Meta Ads: proper segmentation cuts CPC 25-35%', sourceUrl:'https://www.facebook.com/business/news' }
+        { match:['leads','email'], frame:'gain', title:'Lead nurture: 80% buy from the agent who follows up', body:'Every open house generates leads that hear nothing for months. A market-update email sequence keeps you top-of-mind, 80% of buyers eventually buy, but from the agent who stayed in touch. Even a 3% conversion lift on a stale list is a closed deal.', solution:'Lead nurture email program', baseRev:30000, liftPct:0.12, sourceLabel:'NAR: 80% of buyers bought from the agent who followed up consistently', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
+        { match:['production','social'], frame:'cost', title:'Listing content system: from 90 min to 15 min each', body:'Every new listing means 1–2 hours of writing, resizing photos, and creating social posts. A brand system with AI-assisted listing templates cuts this to under 20 minutes per listing.', solution:'Listing content system', hrs:5, rate:'skilled', sourceLabel:'Avg: 45-90 min/listing manually vs. 15 min with a content system', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
+        { match:['social','reporting'], frame:'cost', title:'Local authority: consistent content drives inbound leads', body:'Posting only when you close a deal doesn\'t build trust. A weekly market update or neighbourhood insight strategy positions you as the local expert, agents doing this report 25–40% more inbound leads.', solution:'Authority content strategy', hrs:4, rate:'senior', sourceLabel:'NAR Digital Marketing Report: consistent content = 30% more inbound', sourceUrl:'https://www.nar.realtor/research-and-statistics' },
+        { match:['ads'], frame:'gain', title:'Buyer-profile ad segmentation: lower cost per lead', body:'Running a single ad for every buyer wastes budget. Testing buyer vs. seller messaging, neighbourhood specificity, and offer types typically cuts lead cost by 25–35%.', solution:'Paid ads creative testing', baseRev:30000, liftPct:0.10, sourceLabel:'Meta Ads: proper segmentation cuts CPC 25-35%', sourceUrl:'https://www.facebook.com/business/news' }
       ],
       proservices: [
-        { match:['social','production'], frame:'cost', title:'LinkedIn and thought leadership completely neglected', body:'Professional services sell on trust, and trust is built through consistent visible expertise. Most firms post sporadically and wonder why referrals are flat. A content system keeps your brand visible at a fraction of the time.', solution:'Thought leadership content system', hrs:5, rate:'senior', sourceLabel:'LinkedIn: consistent thought leadership = 60% more leads', sourceUrl:'https://business.linkedin.com/marketing-solutions/research' },
-        { match:['email','leads'], frame:'gain', title:'No referral program, happy clients not activated', body:'Your best clients would refer you, if you made it easy. A structured referral email sequence sent at the right time in the client journey typically generates 15–25% more new clients from your existing base.', solution:'Referral activation program', baseRev:40000, liftPct:0.10, sourceLabel:'HubSpot: referral marketing generates 30% of new clients for services firms', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['reporting','ads'], frame:'mixed', title:'Client reporting done manually, not showcasing ROI', body:'Hours spent building decks to prove your value. Automated reporting dashboards let you send ROI summaries monthly with no manual work, and typically improve client retention 15–20%.', solution:'Automated client reporting', hrs:4, rate:'skilled', baseRev:40000, liftPct:0.07, sourceLabel:'Agency benchmark: automated reporting = 18% retention improvement', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['leads','ads'], frame:'gain', title:'No Google Ads or SEO, invisible to ready-to-buy clients', body:'"Accountant near me" or "Family lawyer in [city]" searches happen every day. Most professional service firms have zero organic or paid search presence, these are buyers actively looking for you right now.', solution:'Search strategy + Google Ads', baseRev:40000, liftPct:0.12, sourceLabel:'Google: 70% of professional services research begins with search', sourceUrl:'https://www.thinkwithgoogle.com/' }
+        { match:['social','production'], frame:'cost', title:'LinkedIn thought leadership: more leads with little time', body:'Professional services sell on trust, and trust is built through consistent visible expertise. Most firms post sporadically and wonder why referrals are flat. A content system keeps your brand visible at a fraction of the time.', solution:'Thought leadership content system', hrs:5, rate:'senior', sourceLabel:'LinkedIn: consistent thought leadership = 60% more leads', sourceUrl:'https://business.linkedin.com/marketing-solutions/research' },
+        { match:['email','leads'], frame:'gain', title:'Referral program: activating your happy clients', body:'Your best clients would refer you, if you made it easy. A structured referral email sequence sent at the right time in the client journey typically generates 15–25% more new clients from your existing base.', solution:'Referral activation program', baseRev:40000, liftPct:0.10, sourceLabel:'HubSpot: referral marketing generates 30% of new clients for services firms', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['reporting','ads'], frame:'mixed', title:'Automated reporting: prove ROI and retain more clients', body:'Hours spent building decks to prove your value. Automated reporting dashboards let you send ROI summaries monthly with no manual work, and typically improve client retention 15–20%.', solution:'Automated client reporting', hrs:4, rate:'skilled', baseRev:40000, liftPct:0.07, sourceLabel:'Agency benchmark: automated reporting = 18% retention improvement', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['leads','ads'], frame:'gain', title:'Search & Google Ads: clients already looking for you', body:'"Accountant near me" or "Family lawyer in [city]" searches happen every day. Most professional service firms have zero organic or paid search presence, these are buyers actively looking for you right now.', solution:'Search strategy + Google Ads', baseRev:40000, liftPct:0.12, sourceLabel:'Google: 70% of professional services research begins with search', sourceUrl:'https://www.thinkwithgoogle.com/' }
       ],
       retail: [
-        { match:['social','production'], frame:'cost', title:'No brand content system, every post created from scratch', body:'A retail brand should be posting 5–7× per week with consistent brand voice, photography, and creative templates. Most teams waste 10+ hours weekly reinventing each post instead of working from a system.', solution:'Brand content system + templates', hrs:8, rate:'skilled', sourceLabel:'Sprout Social: content systems reduce creation time 60-70%', sourceUrl:'https://sproutsocial.com/insights/' },
-        { match:['email','leads'], frame:'gain', title:'Email list not segmented, sending the same thing to everyone', body:'Retail email lists have 3–5 distinct buyer segments with different motivations. Segmented email campaigns typically generate 2–3× higher revenue per email than generic blasts.', solution:'Email segmentation + automation', baseRev:35000, liftPct:0.14, sourceLabel:'Klaviyo: segmented emails drive 2-3× more revenue per email', sourceUrl:'https://www.klaviyo.com/resources/reports' },
-        { match:['ads'], frame:'mixed', title:'Ad creative stuck on product photos only', body:'Lifestyle, user-generated, and video creative consistently outperform static product photos by 2–4×. Most brands don\'t have a UGC or video strategy, they\'re paying for ads that underperform.', solution:'Creative strategy + UGC program', hrs:4, rate:'skilled', baseRev:35000, liftPct:0.10, sourceLabel:'Meta Creative Research: UGC/video outperforms static by 2-4×', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['reporting'], frame:'cost', title:'No attribution model, can\'t tell what\'s actually working', body:'Spending on Meta, Google, and influencers with no clear picture of which channel drives the most revenue. A unified attribution setup saves 15–25% of marketing budget annually by cutting what doesn\'t work.', solution:'Marketing attribution dashboard', hrs:4, rate:'senior', sourceLabel:'Nielsen: proper attribution saves 15-25% of media budget', sourceUrl:'https://www.nielsen.com/insights/' }
+        { match:['social','production'], frame:'cost', title:'Brand content system: 60-70% faster content creation', body:'A retail brand should be posting 5–7× per week with consistent brand voice, photography, and creative templates. Most teams waste 10+ hours weekly reinventing each post instead of working from a system.', solution:'Brand content system + templates', hrs:8, rate:'skilled', sourceLabel:'Sprout Social: content systems reduce creation time 60-70%', sourceUrl:'https://sproutsocial.com/insights/' },
+        { match:['email','leads'], frame:'gain', title:'Email segmentation: 2-3× more revenue per send', body:'Retail email lists have 3–5 distinct buyer segments with different motivations. Segmented email campaigns typically generate 2–3× higher revenue per email than generic blasts.', solution:'Email segmentation + automation', baseRev:35000, liftPct:0.14, sourceLabel:'Klaviyo: segmented emails drive 2-3× more revenue per email', sourceUrl:'https://www.klaviyo.com/resources/reports' },
+        { match:['ads'], frame:'mixed', title:'Lifestyle & UGC creative: 2-4× better than product photos', body:'Lifestyle, user-generated, and video creative consistently outperform static product photos by 2–4×. Most brands don\'t have a UGC or video strategy, they\'re paying for ads that underperform.', solution:'Creative strategy + UGC program', hrs:4, rate:'skilled', baseRev:35000, liftPct:0.10, sourceLabel:'Meta Creative Research: UGC/video outperforms static by 2-4×', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['reporting'], frame:'cost', title:'Attribution model: 15-25% of media budget at stake', body:'Spending on Meta, Google, and influencers with no clear picture of which channel drives the most revenue. A unified attribution setup saves 15–25% of marketing budget annually by cutting what doesn\'t work.', solution:'Marketing attribution dashboard', hrs:4, rate:'senior', sourceLabel:'Nielsen: proper attribution saves 15-25% of media budget', sourceUrl:'https://www.nielsen.com/insights/' }
       ],
       fitness: [
-        { match:['leads','email'], frame:'gain', title:'Trial members never converted with a proper sequence', body:'Free trial signups have a 30–60 day window where the right personalized follow-up converts 15–25% more to paid memberships. Most gyms rely on generic check-in messages or none at all.', solution:'Trial-to-member nurture sequence', baseRev:20000, liftPct:0.15, sourceLabel:'Mindbody: structured nurture converts 20% more trial members', sourceUrl:'https://www.mindbodyonline.com/business/education/' },
-        { match:['social','production'], frame:'cost', title:'Social content posted ad hoc, no transformation stories', body:'Before-and-afters, member stories, and coach spotlights are the highest-performing fitness content, yet most gyms post generic workout tips. A system built around transformation stories typically doubles engagement.', solution:'Member story content system', hrs:6, rate:'skilled', sourceLabel:'Instagram Health & Fitness Report: transformation content = 2× engagement', sourceUrl:'https://business.instagram.com/resources/' },
-        { match:['ads'], frame:'gain', title:'Running broad awareness ads instead of local radius targeting', body:'Fitness businesses win in a 5km radius. Most run city-wide ads and waste budget on people who would never come to their location. Tight geo-targeted ads with a specific offer cut cost-per-lead by 35–45%.', solution:'Local-radius paid ad strategy', baseRev:20000, liftPct:0.12, sourceLabel:'Meta: local-radius campaigns avg 35% lower CPL vs. broad', sourceUrl:'https://www.facebook.com/business/news' },
-        { match:['reporting','production'], frame:'cost', title:'Schedule, promos, and events communicated inconsistently', body:'Class schedule changes, new programs, and events communicated via group chat or Instagram story, no brand templates, no consistent email communication. Members miss things. Members leave.', solution:'Member communication system', hrs:4, rate:'admin', sourceLabel:'Mindbody: structured comms reduce churn 15%', sourceUrl:'https://www.mindbodyonline.com/business/education/' }
+        { match:['leads','email'], frame:'gain', title:'Trial-to-member conversion: 15-25% more with a sequence', body:'Free trial signups have a 30–60 day window where the right personalized follow-up converts 15–25% more to paid memberships. Most gyms rely on generic check-in messages or none at all.', solution:'Trial-to-member nurture sequence', baseRev:20000, liftPct:0.15, sourceLabel:'Mindbody: structured nurture converts 20% more trial members', sourceUrl:'https://www.mindbodyonline.com/business/education/' },
+        { match:['social','production'], frame:'cost', title:'Transformation stories: 2× more engagement in fitness', body:'Before-and-afters, member stories, and coach spotlights are the highest-performing fitness content, yet most gyms post generic workout tips. A system built around transformation stories typically doubles engagement.', solution:'Member story content system', hrs:6, rate:'skilled', sourceLabel:'Instagram Health & Fitness Report: transformation content = 2× engagement', sourceUrl:'https://business.instagram.com/resources/' },
+        { match:['ads'], frame:'gain', title:'Local-radius ads: 35-45% lower cost per lead', body:'Fitness businesses win in a 5km radius. Most run city-wide ads and waste budget on people who would never come to their location. Tight geo-targeted ads with a specific offer cut cost-per-lead by 35–45%.', solution:'Local-radius paid ad strategy', baseRev:20000, liftPct:0.12, sourceLabel:'Meta: local-radius campaigns avg 35% lower CPL vs. broad', sourceUrl:'https://www.facebook.com/business/news' },
+        { match:['reporting','production'], frame:'cost', title:'Member communication: fewer cancellations from missed info', body:'Class schedule changes, new programs, and events communicated via group chat or Instagram story, no brand templates, no consistent email communication. Members miss things. Members leave.', solution:'Member communication system', hrs:4, rate:'admin', sourceLabel:'Mindbody: structured comms reduce churn 15%', sourceUrl:'https://www.mindbodyonline.com/business/education/' }
       ],
       trades: [
-        { match:['leads','ads'], frame:'gain', title:'No Google Business optimization, invisible to local searches', body:'"Plumber near me", "HVAC repair [city]", these searches happen hundreds of times daily in your area. An optimized Google Business profile with consistent reviews and weekly posts typically generates 20–35% more inbound calls.', solution:'Google Business + local SEO', baseRev:45000, liftPct:0.15, sourceLabel:'Google: optimized GBP = 35% more direction requests and calls', sourceUrl:'https://www.thinkwithgoogle.com/' },
-        { match:['social','production'], frame:'cost', title:'Before-and-after photos never turned into content', body:'Every job is a portfolio piece, but most trades businesses let the photos rot in a camera roll. A simple system for capturing and posting before-and-afters builds social proof that generates organic referrals.', solution:'Project content system', hrs:3, rate:'admin', sourceLabel:'Houzz: before-and-after content = 60% more engaged followers', sourceUrl:'https://www.houzz.com/professionals/' },
-        { match:['email','reporting'], frame:'mixed', title:'Past customers never re-engaged for seasonal work', body:'A homeowner who used you 2 years ago is your best prospect, but they\'ve heard nothing from you. A seasonal maintenance reminder sequence typically recovers 15–25% of lapsed clients as repeat business.', solution:'Seasonal re-engagement campaign', hrs:2, rate:'admin', baseRev:45000, liftPct:0.10, sourceLabel:'Industry: past customer re-engagement = 5× cheaper than new acquisition', sourceUrl:'https://growwstacks.com/blog/ai-chatbots-ecommerce-roi-metrics' },
-        { match:['ads'], frame:'gain', title:'No paid search, missing buyers who are ready right now', body:'Someone searching "emergency furnace repair" or "bathroom renovation quote" is ready to hire. Trades businesses with Google Ads for high-intent keywords report 2–3× more qualified leads at a predictable cost.', solution:'Google Ads for high-intent searches', baseRev:45000, liftPct:0.12, sourceLabel:'Google: home services search ads = 2-3× more qualified leads', sourceUrl:'https://www.thinkwithgoogle.com/' }
+        { match:['leads','ads'], frame:'gain', title:'Google Business & local SEO: 35% more calls and directions', body:'"Plumber near me", "HVAC repair [city]", these searches happen hundreds of times daily in your area. An optimized Google Business profile with consistent reviews and weekly posts typically generates 20–35% more inbound calls.', solution:'Google Business + local SEO', baseRev:45000, liftPct:0.15, sourceLabel:'Google: optimized GBP = 35% more direction requests and calls', sourceUrl:'https://www.thinkwithgoogle.com/' },
+        { match:['social','production'], frame:'cost', title:'Project content: before-and-afters that drive referrals', body:'Every job is a portfolio piece, but most trades businesses let the photos rot in a camera roll. A simple system for capturing and posting before-and-afters builds social proof that generates organic referrals.', solution:'Project content system', hrs:3, rate:'admin', sourceLabel:'Houzz: before-and-after content = 60% more engaged followers', sourceUrl:'https://www.houzz.com/professionals/' },
+        { match:['email','reporting'], frame:'mixed', title:'Seasonal re-engagement: lapsed clients are 5× cheaper to win', body:'A homeowner who used you 2 years ago is your best prospect, but they\'ve heard nothing from you. A seasonal maintenance reminder sequence typically recovers 15–25% of lapsed clients as repeat business.', solution:'Seasonal re-engagement campaign', hrs:2, rate:'admin', baseRev:45000, liftPct:0.10, sourceLabel:'Industry: past customer re-engagement = 5× cheaper than new acquisition', sourceUrl:'https://growwstacks.com/blog/ai-chatbots-ecommerce-roi-metrics' },
+        { match:['ads'], frame:'gain', title:'High-intent search ads: 2-3× more qualified leads', body:'Someone searching "emergency furnace repair" or "bathroom renovation quote" is ready to hire. Trades businesses with Google Ads for high-intent keywords report 2–3× more qualified leads at a predictable cost.', solution:'Google Ads for high-intent searches', baseRev:45000, liftPct:0.12, sourceLabel:'Google: home services search ads = 2-3× more qualified leads', sourceUrl:'https://www.thinkwithgoogle.com/' }
       ],
       hospitality: [
-        { match:['leads','ads'], frame:'gain', title:'OTA commissions eating your margin: no direct-booking strategy', body:'Booking.com and Expedia charge 15–30% commission per reservation; a direct booking costs closer to 4.5%. With no strategy to move guests to your own channel, you hand over margin every month. Recapturing even part of those bookings to direct is pure profit.', solution:'Direct-booking strategy + optimized property site', baseRev:50000, liftPct:0.12, sourceLabel:'Hotel industry: OTA commission 15-30% vs. ~4.5% on direct bookings', sourceUrl:'https://hospitalityinsights.ehl.edu/hotel-otas' },
-        { match:['email','leads'], frame:'gain', title:'No email to past guests: zero return bookings', body:'A guest who has already stayed with you is your cheapest possible booking, but most properties have no way to reach them. A seasonal email sequence with offers and return reminders recaptures direct bookings at zero commission.', solution:'Past-guest email program + return automation', baseRev:50000, liftPct:0.08, sourceLabel:'Resorts: past-guest email recaptures bookings at zero commission', sourceUrl:'https://www.americasgreatresorts.net/how-luxury-resorts-reduce-ota-dependence-with-email-marketing-the-real-roi-of-direct-booking-strategy/' },
-        { match:['social','production'], frame:'cost', title:'Content posted with no system: photos and captions on the fly', body:'Every season, event, or new package is produced from scratch, with no templates or branded photo library. Properties with a content system spend 60% less on annual production and post with a consistent identity travellers remember.', solution:'Brand system + hospitality content library', hrs:7, rate:'skilled', sourceLabel:'Industry avg: 60% production cost reduction with a brand system', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' },
-        { match:['ads','social'], frame:'mixed', title:'Ads not segmented by traveller type', body:'A honeymoon traveller, a business traveller, and a family have completely different motivations, but most properties run one generic ad. Segmenting by traveller type with specific messaging and imagery cuts cost-per-booking by 25–40%.', solution:'Traveller-segmented paid ad strategy', hrs:4, rate:'skilled', baseRev:50000, liftPct:0.06, sourceLabel:'Meta Ads: proper segmentation cuts cost-per-conversion 25-40%', sourceUrl:'https://www.facebook.com/business/news' }
+        { match:['leads','ads'], frame:'gain', title:'Direct booking vs. OTAs: recapturing commission margin', body:'Booking.com and Expedia charge 15–30% commission per reservation; a direct booking costs closer to 4.5%. With no strategy to move guests to your own channel, you hand over margin every month. Recapturing even part of those bookings to direct is pure profit.', solution:'Direct-booking strategy + optimized property site', baseRev:50000, liftPct:0.12, sourceLabel:'Hotel industry: OTA commission 15-30% vs. ~4.5% on direct bookings', sourceUrl:'https://hospitalityinsights.ehl.edu/hotel-otas' },
+        { match:['email','leads'], frame:'gain', title:'Past-guest email: return bookings at zero commission', body:'A guest who has already stayed with you is your cheapest possible booking, but most properties have no way to reach them. A seasonal email sequence with offers and return reminders recaptures direct bookings at zero commission.', solution:'Past-guest email program + return automation', baseRev:50000, liftPct:0.08, sourceLabel:'Resorts: past-guest email recaptures bookings at zero commission', sourceUrl:'https://www.americasgreatresorts.net/how-luxury-resorts-reduce-ota-dependence-with-email-marketing-the-real-roi-of-direct-booking-strategy/' },
+        { match:['social','production'], frame:'cost', title:'Hospitality content system: 60% lower production cost', body:'Every season, event, or new package is produced from scratch, with no templates or branded photo library. Properties with a content system spend 60% less on annual production and post with a consistent identity travellers remember.', solution:'Brand system + hospitality content library', hrs:7, rate:'skilled', sourceLabel:'Industry avg: 60% production cost reduction with a brand system', sourceUrl:'https://sproutsocial.com/insights/social-media-templates/' },
+        { match:['ads','social'], frame:'mixed', title:'Traveller-type ad segmentation: 25-40% lower cost per booking', body:'A honeymoon traveller, a business traveller, and a family have completely different motivations, but most properties run one generic ad. Segmenting by traveller type with specific messaging and imagery cuts cost-per-booking by 25–40%.', solution:'Traveller-segmented paid ad strategy', hrs:4, rate:'skilled', baseRev:50000, liftPct:0.06, sourceLabel:'Meta Ads: proper segmentation cuts cost-per-conversion 25-40%', sourceUrl:'https://www.facebook.com/business/news' }
       ],
       other: [
-        { match:['social','production'], frame:'cost', title:'No brand system, content created by feel, not strategy', body:'Without a brand voice guide, content calendar, and visual templates, every post is a new creative decision. Businesses with a documented content system spend 50% less time on content and get 35% more consistent engagement.', solution:'Brand system + content strategy', hrs:6, rate:'skilled', sourceLabel:'HubSpot: documented content strategy = 313% more traffic', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['email','leads'], frame:'gain', title:'Email list not monetized, no automation or nurture', body:'Email is the highest-ROI marketing channel ($36 return for every $1 spent), but most SMBs send irregular blasts. A basic automated nurture sequence converts 12–20% more leads from your existing list.', solution:'Email marketing system', baseRev:30000, liftPct:0.12, sourceLabel:'DMA: email ROI averages $36 per $1 spent', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
-        { match:['ads','reporting'], frame:'mixed', title:'Ad spend without attribution, no idea what\'s working', body:'Running Meta or Google ads without a clear attribution model means you can\'t optimize. Businesses that set up proper tracking typically find 20–30% of their budget is going to underperforming campaigns.', solution:'Marketing attribution + optimization', hrs:4, rate:'senior', baseRev:30000, liftPct:0.08, sourceLabel:'Nielsen: proper attribution saves 15-25% of media budget', sourceUrl:'https://www.nielsen.com/insights/' },
-        { match:['reporting'], frame:'cost', title:'No marketing dashboard, decisions made on gut feel', body:'Without a live view of what\'s driving results, you can\'t make fast decisions. A marketing dashboard built from your existing tools eliminates manual reporting and surfaces insights in real time.', solution:'Custom marketing dashboard', hrs:5, rate:'senior', sourceLabel:'Finch: 5.5 hrs/wk lost to manual reporting', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' },
-        { match:['leads'], frame:'gain', title:'No lead nurture, inquiries that don\'t close immediately go cold', body:'Most sales happen after 5+ touchpoints, but most businesses follow up once or twice. An automated nurture sequence keeps prospects engaged until they\'re ready to buy, typically lifting close rates 15–25%.', solution:'Lead nurture automation', baseRev:30000, liftPct:0.10, sourceLabel:'HubSpot: lead nurture generates 50% more sales-ready leads', sourceUrl:'https://www.hubspot.com/marketing-statistics' }
+        { match:['social','production'], frame:'cost', title:'Brand system: more traffic with a documented strategy', body:'Without a brand voice guide, content calendar, and visual templates, every post is a new creative decision. Businesses with a documented content system spend 50% less time on content and get 35% more consistent engagement.', solution:'Brand system + content strategy', hrs:6, rate:'skilled', sourceLabel:'HubSpot: documented content strategy = 313% more traffic', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['email','leads'], frame:'gain', title:'Email marketing: the highest-ROI channel, untapped', body:'Email is the highest-ROI marketing channel ($36 return for every $1 spent), but most SMBs send irregular blasts. A basic automated nurture sequence converts 12–20% more leads from your existing list.', solution:'Email marketing system', baseRev:30000, liftPct:0.12, sourceLabel:'DMA: email ROI averages $36 per $1 spent', sourceUrl:'https://www.hubspot.com/marketing-statistics' },
+        { match:['ads','reporting'], frame:'mixed', title:'Ad attribution: 20-30% of budget often underperforming', body:'Running Meta or Google ads without a clear attribution model means you can\'t optimize. Businesses that set up proper tracking typically find 20–30% of their budget is going to underperforming campaigns.', solution:'Marketing attribution + optimization', hrs:4, rate:'senior', baseRev:30000, liftPct:0.08, sourceLabel:'Nielsen: proper attribution saves 15-25% of media budget', sourceUrl:'https://www.nielsen.com/insights/' },
+        { match:['reporting'], frame:'cost', title:'Marketing dashboard: real-time decisions vs. gut feel', body:'Without a live view of what\'s driving results, you can\'t make fast decisions. A marketing dashboard built from your existing tools eliminates manual reporting and surfaces insights in real time.', solution:'Custom marketing dashboard', hrs:5, rate:'senior', sourceLabel:'Finch: 5.5 hrs/wk lost to manual reporting', sourceUrl:'https://www.tryfinch.com/blog/employers-waste-billions-on-manual-administrative-tasks' },
+        { match:['leads'], frame:'gain', title:'Lead nurture: 15-25% higher close rates with follow-up', body:'Most sales happen after 5+ touchpoints, but most businesses follow up once or twice. An automated nurture sequence keeps prospects engaged until they\'re ready to buy, typically lifting close rates 15–25%.', solution:'Lead nurture automation', baseRev:30000, liftPct:0.10, sourceLabel:'HubSpot: lead nurture generates 50% more sales-ready leads', sourceUrl:'https://www.hubspot.com/marketing-statistics' }
       ]
     }
   }
@@ -916,6 +970,7 @@ const MARKET_DATA = {
    ============================================================ */
 let currentMarket = 'mx';
 let selectedTools = new Set();
+let lastScan = null;     // {industry,size,timesink,tools,url,market,summary,signals}
 
 /* ============================================================
    MARKET SWITCH
@@ -1047,6 +1102,7 @@ function startHunt() {
   const industry = document.getElementById('industry').value;
   const size = document.getElementById('size').value;
   const timesink = document.getElementById('timesink').value;
+  const website = document.getElementById('website').value.trim();
 
   if (!industry || !size || !timesink) {
     const btn = document.getElementById('huntBtn');
@@ -1062,6 +1118,24 @@ function startHunt() {
   document.getElementById('stage-intro').classList.remove('active');
   document.getElementById('stage-hunting').classList.add('active');
 
+  // Compute the deterministic findings now (instant) so the same set is logged + shown
+  const scan = buildScan(industry, size, timesink);
+  scan.tools = Array.from(selectedTools);
+  scan.url = website;
+  scan.market = currentMarket;
+  scan.signals = null;
+  lastScan = scan;
+
+  // Fire the website-signal fetch + Supabase log in parallel with the animation
+  const scanPromise = fetch('/api/scan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      market: currentMarket, industry, teamSize: size, timesink,
+      tools: scan.tools, websiteUrl: website, results: scan.summary
+    })
+  }).then(r => r.json()).catch(() => null);
+
   const msgs = T[currentMarket].huntMsgs;
   const statusEl = document.getElementById('huntingStatus');
   let i = 0;
@@ -1069,10 +1143,57 @@ function startHunt() {
     if (i < msgs.length) { statusEl.textContent = msgs[i]; i++; }
   }, 370);
 
-  setTimeout(() => {
+  setTimeout(async () => {
     clearInterval(interval);
-    showResults(industry, size, timesink);
+    // Wait for signals but cap total wait so a slow site never stalls the result
+    let signals = null;
+    if (website) {
+      const res = await Promise.race([
+        scanPromise,
+        new Promise(r => setTimeout(() => r(null), 2500))
+      ]);
+      signals = res && res.signals ? res.signals : null;
+    }
+    scan.signals = signals;
+    renderResults(scan, signals);
   }, 2700);
+}
+
+/* ============================================================
+   BUILD SCAN (pure: pick findings + compute totals)
+   ============================================================ */
+function buildScan(industry, size, timesink) {
+  const mktData = MARKET_DATA[currentMarket];
+  const sizeMult = SIZE_MULT[size] || 1.0;
+  const pool = mktData.ineff[industry] || mktData.ineff.other;
+
+  const scored = pool.map(item => ({
+    ...item,
+    score: item.match.includes(timesink) ? 10 : Math.random()
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  const picksRaw = scored.slice(0, 3);
+
+  let totalCost = 0, totalGain = 0;
+  const picks = picksRaw.map(item => {
+    const impact = calculateImpact(item, sizeMult);
+    if (impact.frame === 'cost') totalCost += impact.amount;
+    else if (impact.frame === 'gain') totalGain += impact.amount;
+    else { totalCost += impact.costAmount || 0; totalGain += impact.gainAmount || 0; }
+    return { item, impact };
+  });
+  const total = totalCost + totalGain;
+
+  return {
+    industry, size, timesink, picks, totalCost, totalGain, total,
+    summary: {
+      totalCost, totalGain, total,
+      findings: picks.map(p => ({
+        title: p.item.title, solution: p.item.solution,
+        amount: p.impact.amount, frame: p.impact.frame
+      }))
+    }
+  };
 }
 
 /* ============================================================
@@ -1134,32 +1255,23 @@ function formatCurrencyShort(n) {
 /* ============================================================
    SHOW RESULTS
    ============================================================ */
-function showResults(industry, size, timesink) {
+function renderResults(scan, signals) {
   document.getElementById('stage-hunting').classList.remove('active');
   document.getElementById('stage-results').classList.add('active');
 
   const t = T[currentMarket];
-  const mktData = MARKET_DATA[currentMarket];
-  const pool = mktData.ineff[industry] || mktData.ineff.other;
-  const sizeMult = SIZE_MULT[size] || 1.0;
+  const picks = scan.picks;
+  const totalCost = scan.totalCost, totalGain = scan.totalGain;
 
-  const scored = pool.map(item => ({
-    ...item,
-    score: item.match.includes(timesink) ? 10 : Math.random()
-  }));
-  scored.sort((a, b) => b.score - a.score);
-  const picks = scored.slice(0, 3);
+  // Website signals strip
+  renderSignals(signals, scan.url);
 
-  let totalCost = 0, totalGain = 0;
   const findingsEl = document.getElementById('findings');
   findingsEl.innerHTML = '';
 
-  picks.forEach((item, idx) => {
-    const impact = calculateImpact(item, sizeMult);
-
-    if (impact.frame === 'cost') totalCost += impact.amount;
-    else if (impact.frame === 'gain') totalGain += impact.amount;
-    else { totalCost += impact.costAmount || 0; totalGain += impact.gainAmount || 0; }
+  picks.forEach((pick, idx) => {
+    const item = pick.item;
+    const impact = pick.impact;
 
     const card = document.createElement('div');
     card.className = 'finding frame-' + impact.frame;
@@ -1216,6 +1328,52 @@ function showResults(industry, size, timesink) {
 }
 
 /* ============================================================
+   WEBSITE SIGNALS STRIP (deterministic facts only)
+   ============================================================ */
+function renderSignals(signals, url) {
+  const el = document.getElementById('websiteSignals');
+  if (!signals) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const t = T[currentMarket];
+  const n = t.sigNames;
+
+  const head = `<div class="ws-head">
+      <span class="ws-title">${t.sigTitle}</span>
+      <span class="ws-sub">${t.sigSub}</span>
+      ${url ? `<span class="ws-url">${esc(url)}</span>` : ''}
+    </div>`;
+
+  if (!signals.reachable) {
+    el.innerHTML = head + `<div class="ws-unreachable">${t.sigUnreachable}</div>`;
+    el.style.display = 'block';
+    return;
+  }
+
+  const hasSocial = signals.social && Object.values(signals.social).some(Boolean);
+  const items = [
+    { name: n.metaPixel,    ok: !!signals.metaPixel },
+    { name: n.analytics,    ok: !!signals.analytics },
+    { name: n.emailCapture, ok: !!signals.emailCapture },
+    { name: n.social,       ok: hasSocial }
+  ];
+
+  const grid = items.map(it => `
+    <div class="ws-item ${it.ok ? 'ok' : 'no'}">
+      <span class="ws-ic">${it.ok ? '✓' : '!'}</span>
+      <span class="ws-name">${it.name}</span>
+      <span class="ws-state">${it.ok ? t.sigDetected : t.sigMissing}</span>
+    </div>`).join('');
+
+  el.innerHTML = head + `<div class="ws-grid">${grid}</div>`;
+  el.style.display = 'block';
+}
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"]/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+  ));
+}
+
+/* ============================================================
    UTILITIES
    ============================================================ */
 function animateNumber(from, to, duration, cb) {
@@ -1242,6 +1400,9 @@ function restartHunt() {
   updateChips();
   document.getElementById('methToggle').classList.remove('open');
   document.getElementById('methContent').classList.remove('open');
+  const ws = document.getElementById('websiteSignals');
+  ws.style.display = 'none'; ws.innerHTML = '';
+  lastScan = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1334,6 +1495,15 @@ async function submitContact(e) {
     phone:   document.getElementById('cf-phone').value.trim(),
     message: document.getElementById('cf-message').value.trim(),
     market:  document.getElementById('cf-market').value,
+    scan:    lastScan ? {
+      industry: lastScan.industry,
+      teamSize: lastScan.size,
+      timesink: lastScan.timesink,
+      tools:    lastScan.tools,
+      website:  lastScan.url,
+      signals:  lastScan.signals,
+      results:  lastScan.summary
+    } : null,
   };
 
   try {
