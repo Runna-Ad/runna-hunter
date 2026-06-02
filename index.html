@@ -1124,6 +1124,9 @@ function startHunt() {
   scan.url = website;
   scan.market = currentMarket;
   scan.signals = null;
+  // Client-generates the row id so we can flip `contacted` later without a SELECT policy.
+  // Only if randomUUID exists (a malformed uuid would break the insert); else skip tracking.
+  scan.id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
   lastScan = scan;
 
   // Fire the website-signal fetch + Supabase log in parallel with the animation
@@ -1131,6 +1134,7 @@ function startHunt() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      scanId: scan.id,
       market: currentMarket, industry, teamSize: size, timesink,
       tools: scan.tools, websiteUrl: website, results: scan.summary
     })
@@ -1495,6 +1499,7 @@ async function submitContact(e) {
     phone:   document.getElementById('cf-phone').value.trim(),
     message: document.getElementById('cf-message').value.trim(),
     market:  document.getElementById('cf-market').value,
+    scanId:  lastScan ? lastScan.id : null,
     scan:    lastScan ? {
       industry: lastScan.industry,
       teamSize: lastScan.size,

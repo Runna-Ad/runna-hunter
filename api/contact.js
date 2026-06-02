@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { name, company, email, phone, message, market, scan } = req.body || {};
+  const { name, company, email, phone, message, market, scan, scanId } = req.body || {};
 
   if (!name || !company || !email) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -33,10 +33,37 @@ export default async function handler(req, res) {
       subject,
       html:    buildEmailHtml({ name, company, email, phone, message, market, scan, isCA, flag, subject })
     });
+
+    // Mark the originating scan as contacted (best-effort; never fails the response)
+    if (scanId) {
+      try { await markContacted(scanId); }
+      catch (err) { console.error('markContacted error:', err?.message); }
+    }
+
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('Email error:', err);
     return res.status(500).json({ error: 'Failed to send email' });
+  }
+}
+
+/* ── Flip the scan's contacted flag via security-definer RPC ─ */
+async function markContacted(scanId) {
+  const base = process.env.SUPABASE_URL;
+  const key  = process.env.SUPABASE_ANON_KEY;
+  if (!base || !key) return;
+  const resp = await fetch(`${base}/rest/v1/rpc/mark_hunter_contacted`, {
+    method: 'POST',
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ p_id: scanId })
+  });
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    console.error('mark_hunter_contacted failed', resp.status, body.slice(0, 200));
   }
 }
 

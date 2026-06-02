@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   const {
-    market, industry, teamSize, timesink, tools,
+    scanId, market, industry, teamSize, timesink, tools,
     websiteUrl, results
   } = req.body || {};
 
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   //      A logging failure must never break the user-facing response.
   try {
     await logScan({
-      market, industry, teamSize, timesink, tools,
+      id: scanId, market, industry, teamSize, timesink, tools,
       websiteUrl, signals, results,
       ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || null,
       userAgent: req.headers['user-agent'] || null
@@ -177,6 +177,7 @@ async function logScan(row) {
       Prefer: 'return=minimal'
     },
     body: JSON.stringify({
+      ...(row.id ? { id: row.id } : {}),
       market:     row.market || null,
       industry:   row.industry || null,
       team_size:  row.teamSize || null,

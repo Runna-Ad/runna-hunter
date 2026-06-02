@@ -48,6 +48,16 @@ Key gotchas hit: (1) serverless freezes after response → must await the Supaba
 insert; (2) `vercel env add` needs --value in non-interactive mode + --no-sensitive
 to be pullable; (3) vercel dev uses DEVELOPMENT env, so vars needed there too.
 
+## Phase 1.5 — Conversion tracking (contacted flag)  ✅ built + tested
+Goal: SPAM can show a real funnel (scanned → booked a call).
+- [x] Client generates scan id (crypto.randomUUID) at hunt start, passes to /api/scan
+- [x] /api/scan inserts row with that id (client knows it without a SELECT policy)
+- [x] Migration: contacted_at column + security-definer RPC mark_hunter_contacted(id),
+      execute granted to anon ONLY (anon cannot read or broad-update the table)
+- [x] Contact form passes scanId; /api/contact calls the RPC after sending email
+- [x] Verified locally: insert with known id → RPC → contacted=true + contacted_at set
+- [ ] Deploy (awaiting Pedro approval)
+
 ## Out of scope (Phase 2)
 - Claude solution-mapping layer + Runna Offering Catalog
 - PageSpeed API score (needs Google API key — Phase 1.5)
