@@ -375,6 +375,36 @@
   }
 
   /* CTA */
+  /* ===== AI: per-finding offering + game plan ===== */
+  .finding-offering {
+    margin-top: 14px; padding-top: 13px; border-top: 1px dashed rgba(119,92,191,0.16);
+    display: none; opacity: 0; transition: opacity 0.4s ease;
+  }
+  .finding-offering.show { display: block; opacity: 1; }
+  .fo-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px;
+  }
+  .fo-tag .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 5px var(--gold); }
+  .fo-name { font-size: 14px; font-weight: 600; color: var(--white); }
+  .fo-pitch { font-size: 12.5px; line-height: 1.6; color: var(--text-muted); margin-top: 4px; }
+
+  .game-plan {
+    max-width: 720px; margin: 0 auto 28px; padding: 28px 30px;
+    background: linear-gradient(160deg, rgba(119,92,191,0.14), rgba(222,90,95,0.06));
+    border: 1px solid rgba(119,92,191,0.26); border-radius: 18px;
+    opacity: 0; transform: translateY(12px); transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .game-plan.show { opacity: 1; transform: translateY(0); }
+  .gp-eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--purple);
+    letter-spacing: 0.12em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .gp-eyebrow::before { content: ''; width: 14px; height: 1px; background: var(--purple); }
+  .gp-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 10px; }
+  .gp-body { font-size: 14px; line-height: 1.72; color: var(--text-muted); }
+
   .results-cta {
     background: linear-gradient(135deg, rgba(119,92,191,0.11), rgba(222,90,95,0.05));
     border: 1px solid rgba(119,92,191,0.22); border-radius: 18px; padding: 36px; text-align: center;
@@ -654,6 +684,8 @@
 
       <div class="findings" id="findings"></div>
 
+      <div class="game-plan" id="gamePlan" style="display:none;"></div>
+
       <div class="results-cta">
         <h2 data-t="ctaTitle">Esto tardó 30 segundos. Imagina lo que encontraríamos en 30 días.</h2>
         <p data-t="ctaBody">Agenda una llamada de diagnóstico gratis de 30 minutos. Presionamos estos números contra tu negocio real, y te decimos qué brecha cerrar primero.</p>
@@ -712,6 +744,9 @@ const T = {
     resultsEyebrow: '3 ineficiencias de marketing encontradas',
     resultsTitle: 'Analizamos. Esto es lo que <span class="accent-g">te está costando.</span>',
     benchmarkNote: 'Estas son las fugas más comunes para negocios como el tuyo. Confirmamos exactamente cuáles aplican en tu llamada.',
+    foLabel: 'Lo que construiríamos',
+    gpEyebrow: 'Tu plan con Rünna',
+    gpTitle: 'Cómo lo cerramos contigo',
     wastedLabel: 'Desperdicio / mes',
     missedLabel: 'Ingresos perdidos / mes',
     totalLabel: 'Total en juego',
@@ -780,6 +815,9 @@ const T = {
     resultsEyebrow: '3 marketing gaps found',
     resultsTitle: 'We looked. Here\'s what\'s <span class="accent-g">costing you.</span>',
     benchmarkNote: 'These are the most common profit leaks for businesses like yours. We confirm exactly which apply to you on the call.',
+    foLabel: 'What we\'d build',
+    gpEyebrow: 'Your Rünna game plan',
+    gpTitle: 'How we\'d close the gaps with you',
     wastedLabel: 'Wasted / month',
     missedLabel: 'Missed revenue / month',
     totalLabel: 'Total on the table',
@@ -1299,7 +1337,8 @@ function renderResults(scan, signals) {
       <div class="finding-calc">
         <div class="calc-formula">${impact.formula}</div>
         <div class="calc-source">${t.sourceLabel} <a href="${item.sourceUrl}" target="_blank" rel="noopener noreferrer">${item.sourceLabel}</a></div>
-      </div>`;
+      </div>
+      <div class="finding-offering" data-idx="${idx}"></div>`;
     findingsEl.appendChild(card);
     setTimeout(() => card.classList.add('visible'), 120 + idx * 180);
   });
@@ -1329,6 +1368,73 @@ function renderResults(scan, signals) {
   document.getElementById('methContent').innerHTML = t.methContent;
   document.getElementById('methToggle').classList.remove('open');
   document.getElementById('methContent').classList.remove('open');
+
+  // AI layer (Phase 2): map findings → Rünna offerings + game plan. Fades in.
+  // Any failure = graceful omission (the page is complete without it).
+  fireRecommend(scan);
+}
+
+/* ============================================================
+   AI RECOMMENDATION (Phase 2) — graceful, never blocks results
+   ============================================================ */
+async function fireRecommend(scan) {
+  const reqScan = scan;
+  let rec = null;
+  try {
+    const res = await fetch('/api/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        market: scan.market,
+        industry: scan.industry,
+        teamSize: scan.size,
+        timesink: scan.timesink,
+        tools: scan.tools,
+        signals: scan.signals,
+        findings: scan.summary.findings
+      })
+    });
+    const json = await res.json();
+    if (json && json.ok && json.recommendation) rec = json.recommendation;
+  } catch { rec = null; }
+
+  // If the user already moved on / restarted, do nothing
+  if (rec && lastScan === reqScan && document.getElementById('stage-results').classList.contains('active')) {
+    renderRecommendation(rec);
+  }
+}
+
+function renderRecommendation(rec) {
+  const t = T[currentMarket];
+  const pairings = Array.isArray(rec.pairings) ? rec.pairings : [];
+
+  // Inject each pairing into its finding card (match by title, fallback by index)
+  const cards = Array.from(document.querySelectorAll('#findings .finding'));
+  pairings.forEach((p, i) => {
+    let slot = null;
+    const byTitle = cards.find(c => {
+      const h = c.querySelector('h3');
+      return h && p.findingTitle && h.textContent.trim() === p.findingTitle.trim();
+    });
+    slot = (byTitle || cards[i])?.querySelector('.finding-offering');
+    if (!slot || !p.offering) return;
+    slot.innerHTML =
+      `<div class="fo-tag"><span class="dot"></span>${t.foLabel}</div>
+       <div class="fo-name">${esc(p.offering)}</div>
+       <div class="fo-pitch">${esc(p.pitch || '')}</div>`;
+    setTimeout(() => slot.classList.add('show'), 30);
+  });
+
+  // Game plan block
+  if (rec.gamePlan) {
+    const gp = document.getElementById('gamePlan');
+    gp.innerHTML =
+      `<div class="gp-eyebrow">${t.gpEyebrow}</div>
+       <div class="gp-title">${t.gpTitle}</div>
+       <div class="gp-body">${esc(rec.gamePlan)}</div>`;
+    gp.style.display = 'block';
+    setTimeout(() => gp.classList.add('show'), 30);
+  }
 }
 
 /* ============================================================
@@ -1382,13 +1488,18 @@ function esc(s) {
    ============================================================ */
 function animateNumber(from, to, duration, cb) {
   const start = performance.now();
+  let done = false;
   function step(now) {
     const p = Math.min((now - start) / duration, 1);
     const e = 1 - Math.pow(1 - p, 3);
     cb(from + (to - from) * e);
     if (p < 1) requestAnimationFrame(step);
+    else done = true;
   }
   requestAnimationFrame(step);
+  // Safety: rAF is throttled in background/hidden tabs. Guarantee the final
+  // value lands even if the animation never runs, so numbers never stick at 0.
+  setTimeout(() => { if (!done) cb(to); }, duration + 150);
 }
 
 function toggleMethodology() {
@@ -1406,6 +1517,8 @@ function restartHunt() {
   document.getElementById('methContent').classList.remove('open');
   const ws = document.getElementById('websiteSignals');
   ws.style.display = 'none'; ws.innerHTML = '';
+  const gp = document.getElementById('gamePlan');
+  gp.style.display = 'none'; gp.classList.remove('show'); gp.innerHTML = '';
   lastScan = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

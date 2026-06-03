@@ -58,6 +58,20 @@ Goal: SPAM can show a real funnel (scanned → booked a call).
 - [x] Verified locally: insert with known id → RPC → contacted=true + contacted_at set
 - [ ] Deploy (awaiting Pedro approval)
 
-## Out of scope (Phase 2)
-- Claude solution-mapping layer + Runna Offering Catalog
+## Phase 2 — AI solution-mapping layer  ✅ built + tested locally
+- [x] Migration: security-definer RPC hunter_ip_recent_count(ip) for per-IP rate limit
+- [x] api/_catalog.js — Runna offering catalog as a model-optimized constant
+- [x] api/recommend.js — Claude Sonnet 4.6 (output_config.format JSON schema, offering
+      enum-locked), catalog cached via cache_control, returns {gamePlan, pairings[]} in
+      market language; em-dash sanitizer backstop
+- [x] Guardrails verified: catalog-only, benchmark framing, only-AI-mentions-timeline held,
+      schema/enum validation, per-IP rate limit RPC, Anthropic account spend cap
+- [x] Frontend: after results render, fetch /api/recommend; fade in per-finding offering
+      pairing + "Your Rünna game plan"; graceful omission on any failure
+- [x] Tested: MX (Spanish) + CA (English), forced-failure → ok:false, zero em dashes,
+      real signals woven in, real proof used, all opacity 1
+- [x] Fixed: rAF → setTimeout (fade-in failed in background tabs)
+- [ ] Deploy after approval  ← CURRENT
+
+## Out of scope
 - PageSpeed API score (needs Google API key — Phase 1.5)

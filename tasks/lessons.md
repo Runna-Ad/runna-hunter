@@ -1,5 +1,42 @@
 # Runna Hunter — Lessons
 
+[2026-06-03] LESSON: requestAnimationFrame fade-in never fired in background/headless tabs
+ROOT CAUSE: The Phase 2 AI layer used `requestAnimationFrame(() => el.classList.add('show'))`
+to trigger the CSS opacity transition. rAF callbacks are throttled/suspended when the tab
+is not visible (headless preview, or a real user who tabs away during the ~30s scan), so
+`.show` was never added and the whole AI layer stayed at opacity:0 — content present in the
+DOM but invisible.
+RULE: For "render now, animate in next tick" patterns, use `setTimeout(fn, ~30)`, not
+requestAnimationFrame — setTimeout fires regardless of tab visibility. Reserve rAF for
+animations that genuinely should pause when off-screen.
+TAGS: #bug #ux #animation #frontend
+
+[2026-06-03] LESSON: The LLM ignored the no-em-dash brand rule until told explicitly + sanitized
+ROOT CAUSE: Claude's default prose style uses em dashes heavily. Phase 2's generated copy
+(game plan + offering pitches) was full of "—", violating Pedro's standing no-em-dash rule,
+even though the rest of the site is em-dash-free.
+RULE: For LLM-generated user-facing copy, (1) state brand formatting rules explicitly in the
+system prompt ("NEVER use em/en dashes; use commas/colons/periods") AND (2) sanitize
+server-side as a backstop (regex replace [—–] → ', '). Prompt instruction alone is not
+reliable enough for a strict brand rule — belt and suspenders.
+TAGS: #ai #copy #brand #credibility
+
+[2026-06-02] PEDRO_OVERRIDE: Phase 2 should be AI-first, not deterministic-first
+WHAT CLAUDE SUGGESTED: Build a free deterministic finding→offering mapping first (2a),
+add the Claude personalization layer second (2b). Reasoning: lower cost/risk, value sooner.
+PEDRO'S CALL: AI plays the big role from day one. A deterministic pairing that isn't an
+exact match reads robotic and "instantly breaks all the trust" — worse than showing
+nothing. He wants AI to analyze/audit/pair and own all wording + hooks so it always
+reads compelling and makes sense.
+WHY HE WAS RIGHT: The value of AI here IS the judgment + persuasive wording. A templated
+near-miss pairing looks dumb and is felt instantly by the prospect. AI-first directly
+solves the "not-exact-match" failure mode that deterministic can't.
+RULE: For prospect-facing recommendation/pairing engines, lead with the LLM (judgment +
+wording); keep deterministic only for facts that must be consistent ($ math) or safe
+(benchmark claims). The fallback for an LLM failure is GRACEFUL OMISSION (drop the layer,
+show clean facts), never a robotic template — two good states, zero broken states.
+TAGS: #override #ai #ux #credibility #architecture
+
 [2026-06-02] LESSON: Supabase insert silently dropped on every scan (no row, no error)
 ROOT CAUSE: The /api/scan route did `logScan(...).catch()` WITHOUT awaiting, then
 returned the response. A Vercel serverless function is frozen/killed the instant it
