@@ -75,3 +75,20 @@ Goal: SPAM can show a real funnel (scanned → booked a call).
 
 ## Out of scope
 - PageSpeed API score (needs Google API key — Phase 1.5)
+
+## Review — Phases 0→2 complete (2026-06-03)
+Shipped a bilingual MX/CA lead-gen + pitch engine, all live at runna-hunter.vercel.app:
+- Phase 0: re-skinned the Nanook hunter for Rünna (brand, bilingual i18n, MX/CA toggle).
+- Added Hospitality industry; reframed ALL findings accusation→benchmark (Pedro override).
+- Contact modal → Gmail SMTP (no third party); meeting requests pre-brief the call.
+- Phase 1: optional website field → SSRF-safe deterministic signals; every scan logged
+  to S.P.A.M Supabase (hunter_scans, anon insert-only).
+- Phase 1.5: conversion tracking — client UUID + security-definer RPC flips contacted.
+- Phase 2: Claude Sonnet maps findings→Rünna offerings (catalog-constrained, enum-locked,
+  benchmark-framed, em-dash-free, bilingual) + personalized game plan; graceful omission.
+
+What worked: phasing with deploy-after-approval each step; testing against REAL company
+sites; catching the rAF-in-background-tab class of bug twice and fixing both.
+Tech debt / notes: tested with big-brand sites (skew "everything detected") — validate
+with real SMB prospects before sending traffic. Offering price bands intentionally blank.
+Handed off: SPAM "Hunter Leads" dashboard prompt (Pedro building it himself).
