@@ -1,5 +1,18 @@
 # Runna Hunter — Lessons
 
+[2026-06-XX] LESSON: i18n leak — contact modal input PLACEHOLDERS stayed Spanish on CA
+ROOT CAUSE: openContact() swapped every label/title/button via T[currentMarket] but the
+three input `placeholder` attributes (cf-name, cf-company, cf-email) were hardcoded
+Spanish in the static HTML and never updated, so the Canadian/English modal showed
+"Tu nombre", "Nombre de tu empresa", "tu@empresa.com". Placeholders are easy to miss
+because they're an attribute, not text content.
+RULE: For per-locale UI, every user-visible string must be driven by the i18n object —
+including placeholder, aria-label, title, and value attributes, not just textContent.
+When auditing a bilingual component, grep the static markup for any literal copy and
+confirm each one is overwritten on locale switch. Pedro's rule: each version must be
+100% its language, zero cross-language leaks.
+TAGS: #bug #i18n #ux #accessibility
+
 [2026-06-03] LESSON: requestAnimationFrame fade-in never fired in background/headless tabs
 ROOT CAUSE: The Phase 2 AI layer used `requestAnimationFrame(() => el.classList.add('show'))`
 to trigger the CSS opacity transition. rAF callbacks are throttled/suspended when the tab

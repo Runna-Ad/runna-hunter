@@ -764,6 +764,9 @@ const T = {
     contactTitle: 'Hablemos de <span class="accent-g">tu negocio</span>',
     contactSub: 'Cuéntanos tu reto de marketing. Te contactamos en menos de 24 horas, sin compromiso.',
     contactName: 'Nombre',
+    contactNamePh: 'Tu nombre',
+    contactCompanyPh: 'Nombre de tu empresa',
+    contactEmailPh: 'tu@empresa.com',
     contactCompany: 'Empresa o marca',
     contactPhone: 'Teléfono',
     contactOptional: '(opcional)',
@@ -835,6 +838,9 @@ const T = {
     contactTitle: 'Let\'s talk about <span class="accent-g">your business</span>',
     contactSub: 'Tell us about your marketing challenge. We\'ll follow up within 24 hours, no commitment.',
     contactName: 'Name',
+    contactNamePh: 'Your name',
+    contactCompanyPh: 'Your company name',
+    contactEmailPh: 'you@company.com',
     contactCompany: 'Company or brand',
     contactPhone: 'Phone',
     contactOptional: '(optional)',
@@ -1530,6 +1536,15 @@ function restartHunt() {
   // Default to Mexico
   document.getElementById('btnMX').classList.add('active');
   populateSelects();
+
+  // Honor an inbound ?market= / ?lang= param so cold-email CTAs can deep-link
+  // straight to the right market: en/ca → Canada, es/mx → Mexico (the default).
+  // Keeps the in-page toggle fully working; this only sets the initial state.
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const raw = (p.get('market') || p.get('lang') || p.get('country') || '').toLowerCase();
+    if (['ca', 'canada', 'en'].includes(raw)) switchMarket('ca');
+  } catch (_e) { /* no-op — bad/blocked URL params shouldn't break the page */ }
 })();
 
 /* ============================================================
@@ -1552,7 +1567,12 @@ function openContact() {
   document.getElementById('cfError').textContent = t.contactError;
   document.getElementById('successCloseBtn').textContent = currentMarket === 'mx' ? 'Cerrar' : 'Close';
   document.getElementById('cf-market').value = currentMarket;
+  // Input placeholders (these were leaking Spanish on the CA side)
+  document.getElementById('cf-name').placeholder = t.contactNamePh;
+  document.getElementById('cf-company').placeholder = t.contactCompanyPh;
+  document.getElementById('cf-email').placeholder = t.contactEmailPh;
   document.getElementById('cf-phone').placeholder = currentMarket === 'mx' ? '+52 55 0000 0000' : '+1 (604) 000-0000';
+  document.querySelector('.modal-close').setAttribute('aria-label', currentMarket === 'mx' ? 'Cerrar' : 'Close');
 
   // Reset state
   document.getElementById('contactForm').classList.remove('hidden');
