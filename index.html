@@ -191,6 +191,28 @@
   .chip:hover { border-color: rgba(119,92,191,0.45); background: rgba(119,92,191,0.08); }
   .chip.selected { background: rgba(119,92,191,0.17); border-color: var(--purple); color: #c4b0f0; }
   .chip.selected::before { content: '✓'; color: var(--purple); font-weight: 700; }
+
+  /* Adaptive question (Phase 3) — one optional, skippable refinement prompt */
+  .adaptive-q {
+    margin: 0 0 18px; padding: 16px 18px;
+    background: rgba(30,28,63,0.5); border: 1px solid rgba(119,92,191,0.22);
+    border-radius: 14px; opacity: 0; transform: translateY(6px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .adaptive-q.show { opacity: 1; transform: translateY(0); }
+  .adaptive-q .aq-q { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 11px; }
+  .adaptive-q .aq-opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .adaptive-q .aq-opt {
+    padding: 7px 14px; background: rgba(119,92,191,0.10); border: 1px solid rgba(119,92,191,0.3);
+    border-radius: 100px; color: #c4b0f0; font-size: 12.5px; font-weight: 500; cursor: pointer;
+    transition: all 0.18s; font-family: 'Poppins', sans-serif;
+  }
+  .adaptive-q .aq-opt:hover { background: rgba(119,92,191,0.22); border-color: var(--purple); }
+  .adaptive-q .aq-skip {
+    margin-left: auto; background: none; border: none; color: rgba(255,255,255,0.45);
+    font-size: 12px; cursor: pointer; font-family: 'Poppins', sans-serif; text-decoration: underline;
+  }
+  .adaptive-q .aq-skip:hover { color: rgba(255,255,255,0.75); }
   .chip-custom-input { display: none; margin-top: 7px; }
   .chip-custom-input.visible { display: block; }
   .chip-custom-input input { font-size: 13px; padding: 9px 13px; }
@@ -682,6 +704,8 @@
 
       <div class="website-signals" id="websiteSignals" style="display:none;"></div>
 
+      <div class="adaptive-q" id="adaptiveQ" style="display:none;"></div>
+
       <div class="findings" id="findings"></div>
 
       <div class="game-plan" id="gamePlan" style="display:none;"></div>
@@ -1050,6 +1074,7 @@ let currentMarket = 'mx';
 let selectedTools = new Set();
 let lastScan = null;     // {industry,size,timesink,tools,url,market,summary,signals}
 let pinnedLeadId = null;  // finding id from ?lead= — pinned to slot 0 when present + valid
+let adaptiveAsked = false; // Phase 3: at most one optional adaptive question per scan
 
 /* ============================================================
    MARKET SWITCH
@@ -1091,6 +1116,7 @@ function switchMarket(mkt) {
   // Reset form state
   selectedTools.clear();
   pinnedLeadId = null;   // pin was specific to the inbound market/industry
+  adaptiveAsked = false;
   document.getElementById('huntForm').reset();
   updateChips();
 
@@ -1443,36 +1469,86 @@ function paintFindings(scan) {
    every $ locally via calculateImpact(). Any failure keeps the deterministic
    findings. Always hands off to fireRecommend() with the final set.
    ============================================================ */
-async function fireRefine(scan) {
-  const reqScan = scan;
-  const pool = MARKET_DATA[scan.market].ineff[scan.industry] || MARKET_DATA[scan.market].ineff.other;
-  const candidates = pool.map(f => ({ id: f.id, title: f.title, body: f.body, solution: f.solution, frame: f.frame }));
-  const deterministicTop3 = scan.picks.map(p => p.item.id);
-
-  let refined = null;
+// POST /api/generate (capped at 3s so a slow LLM never delays the page). Returns
+// the parsed response or null. adaptiveAnswer is set only on an adaptive re-call.
+async function postGenerate(scan, candidates, deterministicTop3, adaptiveAnswer) {
   try {
-    const res = await Promise.race([
+    return await Promise.race([
       fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           market: scan.market, industry: scan.industry, size: scan.size,
           timesink: scan.timesink, tools: scan.tools, signals: scan.signals,
-          lead: pinnedLeadId, deterministicTop3, candidates
+          lead: pinnedLeadId, deterministicTop3, candidates,
+          adaptiveAnswer: adaptiveAnswer || null
         })
       }).then(r => r.json()),
-      new Promise(r => setTimeout(() => r(null), 3000)) // cap so a slow LLM never delays the page
+      new Promise(r => setTimeout(() => r(null), 3000))
     ]);
-    if (res && res.ok && Array.isArray(res.picks) && res.picks.length === 3) refined = res.picks;
-  } catch { refined = null; }
+  } catch { return null; }
+}
+
+function stillOn(reqScan) {
+  return lastScan === reqScan && document.getElementById('stage-results').classList.contains('active');
+}
+
+async function fireRefine(scan) {
+  const reqScan = scan;
+  const pool = MARKET_DATA[scan.market].ineff[scan.industry] || MARKET_DATA[scan.market].ineff.other;
+  const candidates = pool.map(f => ({ id: f.id, title: f.title, body: f.body, solution: f.solution, frame: f.frame }));
+  const deterministicTop3 = scan.picks.map(p => p.item.id);
+
+  const res = await postGenerate(scan, candidates, deterministicTop3, null);
+  const ok = res && res.ok && Array.isArray(res.picks) && res.picks.length === 3;
 
   // Apply only if the user is still on this result (not restarted / switched market).
-  if (refined && lastScan === reqScan && document.getElementById('stage-results').classList.contains('active')) {
-    applyRefinedPicks(scan, refined, pool);
-  }
+  if (ok && stillOn(reqScan)) applyRefinedPicks(scan, res.picks, pool);
 
   // Map findings → offerings on the final (refined or deterministic) set.
   fireRecommend(scan);
+
+  // Phase 3: one optional, skippable adaptive question — never when a lead is
+  // pinned (the email already chose), never twice.
+  if (ok && res.followUp && !pinnedLeadId && !adaptiveAsked && stillOn(reqScan)) {
+    renderAdaptiveQuestion(scan, res.followUp, pool, candidates, deterministicTop3);
+  }
+}
+
+/* ============================================================
+   ADAPTIVE QUESTION (Phase 3) — at most one, skippable, suppressed when pinned
+   ============================================================ */
+function renderAdaptiveQuestion(scan, followUp, pool, candidates, deterministicTop3) {
+  const box = document.getElementById('adaptiveQ');
+  const opts = (followUp.options || []).slice(0, 4);
+  if (!followUp.question || opts.length < 2) return;
+
+  box.innerHTML =
+    `<div class="aq-q">${esc(followUp.question)}</div>
+     <div class="aq-opts">
+       ${opts.map((o, i) => `<button type="button" class="aq-opt" data-i="${i}">${esc(o)}</button>`).join('')}
+       <button type="button" class="aq-skip" data-skip="1">${currentMarket === 'mx' ? 'Omitir' : 'Skip'}</button>
+     </div>`;
+  box.style.display = 'block';
+  requestAnimationFrame(() => box.classList.add('show'));
+
+  const close = () => { adaptiveAsked = true; box.classList.remove('show'); setTimeout(() => { box.style.display = 'none'; box.innerHTML = ''; }, 300); };
+
+  box.querySelectorAll('.aq-opt').forEach(btn => {
+    btn.onclick = async () => {
+      const answer = opts[parseInt(btn.dataset.i, 10)];
+      const reqScan = scan;
+      close();
+      // Re-rank once with the answer. A failed/slow 2nd call leaves the first
+      // refined result untouched (we only apply a valid 3-pick response).
+      const res = await postGenerate(scan, candidates, deterministicTop3, answer);
+      if (res && res.ok && Array.isArray(res.picks) && res.picks.length === 3 && stillOn(reqScan)) {
+        applyRefinedPicks(scan, res.picks, pool);
+        fireRecommend(scan);
+      }
+    };
+  });
+  box.querySelector('.aq-skip').onclick = () => close();
 }
 
 // Rebuild scan.picks from the AI-chosen ids + sharpened prose, recomputing every
@@ -1647,6 +1723,9 @@ function restartHunt() {
   document.getElementById('huntForm').reset();
   selectedTools.clear();
   pinnedLeadId = null;   // manual restart drops the email's pin
+  adaptiveAsked = false;
+  const aq = document.getElementById('adaptiveQ');
+  if (aq) { aq.style.display = 'none'; aq.classList.remove('show'); aq.innerHTML = ''; }
   updateChips();
   document.getElementById('methToggle').classList.remove('open');
   document.getElementById('methContent').classList.remove('open');

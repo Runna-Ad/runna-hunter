@@ -35,6 +35,16 @@ const SCHEMA = {
         required: ['id','title','body'],
         additionalProperties: false
       }
+    },
+    followUp: {
+      type: 'object',
+      description: 'OPTIONAL. Include ONLY if a single short question would change which finding is #1. Omit otherwise.',
+      properties: {
+        question: { type: 'string', description: 'One short question, max ~120 chars. No numbers.' },
+        options: { type: 'array', items: { type: 'string' }, description: '2 to 4 short answer chips.' }
+      },
+      required: ['question','options'],
+      additionalProperties: false
     }
   },
   required: ['picks'],
@@ -44,7 +54,7 @@ const SCHEMA = {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method' });
 
-  const { market, industry, size, timesink, tools, signals, lead, deterministicTop3, candidates } = req.body || {};
+  const { market, industry, size, timesink, tools, signals, lead, deterministicTop3, candidates, adaptiveAnswer } = req.body || {};
 
   // ── Validation (cheap guards before any LLM spend)
   if (!industry || !VALID_INDUSTRIES.has(industry)) return res.status(400).json({ ok: false, error: 'bad_industry' });
@@ -72,6 +82,10 @@ export default async function handler(req, res) {
 
   const isCA = market === 'ca';
   const lang = isCA ? 'English' : 'Spanish (Mexican, natural and warm)';
+  // Adaptive question is allowed only on the FIRST pass and only when nothing is
+  // pinned — a pin means the email already chose the lead, so honor it.
+  const hasAnswer = typeof adaptiveAnswer === 'string' && adaptiveAnswer.trim().length > 0;
+  const allowFollowUp = !pinnedId && !hasAnswer;
 
   const system =
 `You are Rünna's senior strategist refining a prospect's self-serve diagnostic.
@@ -86,6 +100,9 @@ ${pinnedId ? `- The pinned finding id "${pinnedId}" MUST be first in your picks 
 - Reference a website signal only if it is given to you as detected/not-detected. Never assert anything else about their specific setup.
 - Keep titles under ~80 characters and bodies to 1-2 sentences (under ~320 characters). Confident and concrete, never generic filler.
 - NEVER use em dashes (—) or en dashes (–). Use commas, colons, or periods. Strict brand rule.
+${allowFollowUp
+  ? '- FOLLOW-UP: include `followUp` (one short question + 2 to 4 short option chips) ONLY if the answer would genuinely change which finding is #1. This is rare, so usually OMIT it. Never ask about budget or contact details. The question must stand alone with no numbers.'
+  : '- Do NOT include a `followUp` under any circumstance.'}
 - Write everything in ${lang}.`;
 
   const userPayload = {
@@ -94,6 +111,7 @@ ${pinnedId ? `- The pinned finding id "${pinnedId}" MUST be first in your picks 
     toolsTheyUse: Array.isArray(tools) ? tools : [],
     websiteSignals: signals || null,
     pinnedId: pinnedId || null,
+    adaptiveAnswer: typeof adaptiveAnswer === 'string' ? adaptiveAnswer : null,
     deterministicTop3: detTop3,
     candidates: candidates.map(c => ({ id: c.id, title: c.title, body: c.body, solution: c.solution, frame: c.frame }))
   };
@@ -121,7 +139,10 @@ ${JSON.stringify(userPayload, null, 2)}`
     const picks = selectPicks(parsed.picks, byId, pinnedId, detTop3);
     if (picks.length < 3) return res.status(200).json({ ok: false, error: 'insufficient' });
 
-    return res.status(200).json({ ok: true, picks });
+    // followUp is honored only when allowed (no pin, first pass) and well-formed.
+    const followUp = allowFollowUp ? sanitizeFollowUp(parsed.followUp) : null;
+
+    return res.status(200).json({ ok: true, picks, followUp });
   } catch (err) {
     console.error('generate error:', err?.message);
     return res.status(200).json({ ok: false, error: 'generation_failed' });
@@ -149,6 +170,27 @@ export function selectPicks(rawPicks, byId, pinnedId, detTop3) {
     if (!seen.has(id) && byId.has(id)) { seen.add(id); picks.push(sanitizePick({ id }, byId.get(id))); }
   }
   return picks.slice(0, 3);
+}
+
+// Validate the optional adaptive question. Returns a clean {question,options,skippable}
+// or null. Drops anything with a number, <2 options, or empty text (always skippable).
+export function sanitizeFollowUp(fu) {
+  if (!fu || typeof fu.question !== 'string' || !Array.isArray(fu.options)) return null;
+  const question = noDashes(fu.question).trim();
+  if (!question || /\d/.test(question) || question.length > 140) return null;
+  const options = [];
+  const seen = new Set();
+  for (const o of fu.options) {
+    if (typeof o !== 'string') continue;
+    const clean = noDashes(o).trim();
+    const key = clean.toLowerCase();
+    if (!clean || /\d/.test(clean) || clean.length > 48 || seen.has(key)) continue;
+    seen.add(key);
+    options.push(clean);
+    if (options.length === 4) break;
+  }
+  if (options.length < 2) return null;
+  return { question, options, skippable: true };
 }
 
 // Keep the refined prose only when it's clean; otherwise fall back to the catalog
