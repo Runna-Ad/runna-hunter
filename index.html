@@ -1384,6 +1384,10 @@ function renderResults(scan, signals) {
   // Website signals strip
   renderSignals(signals, scan.url);
 
+  // Phase 4: if the scan found an objectively outdated site, surface a
+  // website-modernization finding (deterministic — does not wait on the LLM).
+  maybeInjectWebsiteFinding(scan);
+
   // Deterministic findings + summary (instant first paint).
   paintFindings(scan);
 
@@ -1471,7 +1475,7 @@ function paintFindings(scan) {
    ============================================================ */
 // POST /api/generate (capped at 3s so a slow LLM never delays the page). Returns
 // the parsed response or null. adaptiveAnswer is set only on an adaptive re-call.
-async function postGenerate(scan, candidates, deterministicTop3, adaptiveAnswer) {
+async function postGenerate(scan, candidates, deterministicTop3, adaptiveAnswer, lead) {
   try {
     return await Promise.race([
       fetch('/api/generate', {
@@ -1480,7 +1484,7 @@ async function postGenerate(scan, candidates, deterministicTop3, adaptiveAnswer)
         body: JSON.stringify({
           market: scan.market, industry: scan.industry, size: scan.size,
           timesink: scan.timesink, tools: scan.tools, signals: scan.signals,
-          lead: pinnedLeadId, deterministicTop3, candidates,
+          lead: lead || null, deterministicTop3, candidates,
           adaptiveAnswer: adaptiveAnswer || null
         })
       }).then(r => r.json()),
@@ -1495,11 +1499,18 @@ function stillOn(reqScan) {
 
 async function fireRefine(scan) {
   const reqScan = scan;
-  const pool = MARKET_DATA[scan.market].ineff[scan.industry] || MARKET_DATA[scan.market].ineff.other;
+  const basePool = MARKET_DATA[scan.market].ineff[scan.industry] || MARKET_DATA[scan.market].ineff.other;
+  // Phase 4: when the site is outdated, the injected website finding becomes a
+  // candidate (so Claude can sharpen its prose) and the de-facto lead when no
+  // email pin already claimed slot 0.
+  const mod = scan.signals && scan.signals.modernization;
+  const websiteItem = (mod && mod.outdated) ? buildWebsiteModernFinding(scan.market, mod) : null;
+  const pool = websiteItem ? [...basePool, websiteItem] : basePool;
   const candidates = pool.map(f => ({ id: f.id, title: f.title, body: f.body, solution: f.solution, frame: f.frame }));
   const deterministicTop3 = scan.picks.map(p => p.item.id);
+  const effectiveLead = pinnedLeadId || (websiteItem ? 'website-modern' : null);
 
-  const res = await postGenerate(scan, candidates, deterministicTop3, null);
+  const res = await postGenerate(scan, candidates, deterministicTop3, null, effectiveLead);
   const ok = res && res.ok && Array.isArray(res.picks) && res.picks.length === 3;
 
   // Apply only if the user is still on this result (not restarted / switched market).
@@ -1508,9 +1519,9 @@ async function fireRefine(scan) {
   // Map findings → offerings on the final (refined or deterministic) set.
   fireRecommend(scan);
 
-  // Phase 3: one optional, skippable adaptive question — never when a lead is
-  // pinned (the email already chose), never twice.
-  if (ok && res.followUp && !pinnedLeadId && !adaptiveAsked && stillOn(reqScan)) {
+  // Phase 3: one optional, skippable adaptive question — never when anything leads
+  // slot 0 (email pin OR the outdated-site finding), never twice.
+  if (ok && res.followUp && !effectiveLead && !adaptiveAsked && stillOn(reqScan)) {
     renderAdaptiveQuestion(scan, res.followUp, pool, candidates, deterministicTop3);
   }
 }
@@ -1541,7 +1552,7 @@ function renderAdaptiveQuestion(scan, followUp, pool, candidates, deterministicT
       close();
       // Re-rank once with the answer. A failed/slow 2nd call leaves the first
       // refined result untouched (we only apply a valid 3-pick response).
-      const res = await postGenerate(scan, candidates, deterministicTop3, answer);
+      const res = await postGenerate(scan, candidates, deterministicTop3, answer, null);
       if (res && res.ok && Array.isArray(res.picks) && res.picks.length === 3 && stillOn(reqScan)) {
         applyRefinedPicks(scan, res.picks, pool);
         fireRecommend(scan);
@@ -1558,30 +1569,100 @@ function applyRefinedPicks(scan, picks, pool) {
   const sizeMult = SIZE_MULT[scan.size] || 1.0;
   const byId = new Map(pool.map(f => [f.id, f]));
 
-  let totalCost = 0, totalGain = 0;
   const rebuilt = [];
   for (const p of picks) {
     const base = byId.get(p.id);
     if (!base) continue; // server already validated, but stay defensive
-    const item = { ...base, title: p.title || base.title, body: p.body || base.body };
-    const impact = calculateImpact(item, sizeMult);
-    if (impact.frame === 'cost') totalCost += impact.amount;
-    else if (impact.frame === 'gain') totalGain += impact.amount;
-    else { totalCost += impact.costAmount || 0; totalGain += impact.gainAmount || 0; }
-    rebuilt.push({ item, impact });
+    // The website finding cites SPECIFIC detected defects — keep its deterministic,
+    // fact-grounded copy and never let an LLM rewrite drift onto undetected claims.
+    const item = base.id === 'website-modern'
+      ? base
+      : { ...base, title: p.title || base.title, body: p.body || base.body };
+    rebuilt.push({ item, impact: calculateImpact(item, sizeMult) });
   }
   if (rebuilt.length !== 3) return; // never downgrade the deterministic set
+  commitScanPicks(scan, rebuilt);
+  paintFindings(scan);
+}
 
-  scan.picks = rebuilt;
+// Recompute scan totals + summary from a picks array and store it on the scan.
+function commitScanPicks(scan, picks) {
+  let totalCost = 0, totalGain = 0;
+  for (const p of picks) {
+    if (p.impact.frame === 'cost') totalCost += p.impact.amount;
+    else if (p.impact.frame === 'gain') totalGain += p.impact.amount;
+    else { totalCost += p.impact.costAmount || 0; totalGain += p.impact.gainAmount || 0; }
+  }
+  scan.picks = picks;
   scan.totalCost = totalCost;
   scan.totalGain = totalGain;
   scan.total = totalCost + totalGain;
   scan.summary = {
     totalCost, totalGain, total: scan.total,
-    findings: rebuilt.map(p => ({ title: p.item.title, solution: p.item.solution, amount: p.impact.amount, frame: p.impact.frame }))
+    findings: picks.map(p => ({ title: p.item.title, solution: p.item.solution, amount: p.impact.amount, frame: p.impact.frame }))
   };
+}
 
-  paintFindings(scan);
+/* ============================================================
+   WEBSITE MODERNIZATION (Phase 4) — surfaced ONLY when api/scan.js detected
+   an objectively outdated build (>=3 staleness signals). The copy cites only
+   the detected facts; the $ uses the same formula shape as every catalog
+   finding. Injected deterministically (does not wait on the LLM).
+   ============================================================ */
+const WEBSITE_MODERN_BASEREV = { mx: 250000, ca: 30000 };
+
+// Build a localized, fact-cited finding from the modernization signals.
+function buildWebsiteModernFinding(market, mod) {
+  const es = market === 'mx';
+  // Pick up to 2 of the most credible detected issues to name (facts only).
+  const issuesEs = [];
+  const issuesEn = [];
+  if (mod.noViewport)   { issuesEs.push('no está adaptado a celulares (los visitantes en móvil ven una versión de escritorio encogida)'); issuesEn.push('it is not built for phones, so mobile visitors get a shrunken desktop view'); }
+  if (mod.tableLayout || mod.legacyMarkup) { issuesEs.push('usa una maquetación antigua basada en tablas que carga lento y se ve poco confiable'); issuesEn.push('it uses a dated, table-based layout that loads slowly and reads as untrustworthy'); }
+  if (mod.flash)        { issuesEs.push('depende de Flash, que ningún navegador actual ejecuta'); issuesEn.push('it relies on Flash, which no current browser runs'); }
+  if (mod.notHttps)     { issuesEs.push('no usa conexión segura (HTTPS), y los navegadores lo marcan como "no seguro"'); issuesEn.push('it is not served securely (no HTTPS), which browsers now flag as "not secure"'); }
+  const pick = arr => arr.slice(0, 2).join(es ? '; y ' : '; and ');
+
+  const title = es
+    ? 'Tu sitio web está espantando clientes sin que lo notes'
+    : 'Your website is quietly turning clients away';
+  const body = es
+    ? `Hoy la mayoría de las visitas llegan desde el celular. Detectamos que tu sitio ${pick(issuesEs)}. Un rediseño moderno y mobile-first convierte esas visitas en contactos en lugar de perderlas.`
+    : `Most visits today come from a phone. We detected that your site ${pick(issuesEn)}. A modern, mobile-first rebuild turns those visitors into enquiries instead of losing them.`;
+
+  return {
+    id: 'website-modern',
+    match: ['leads', 'production'],
+    frame: 'gain',
+    title,
+    body,
+    solution: es ? 'Rediseño web moderno y mobile-first' : 'Modern, mobile-first website rebuild',
+    baseRev: WEBSITE_MODERN_BASEREV[market] || WEBSITE_MODERN_BASEREV.ca,
+    liftPct: 0.12,
+    sourceLabel: es
+      ? 'Google: la mayoría del tráfico web es móvil; los sitios mobile-friendly convierten más'
+      : 'Google: most web traffic is mobile; mobile-friendly sites convert more',
+    sourceUrl: 'https://www.thinkwithgoogle.com/'
+  };
+}
+
+// If the scan flagged the site as outdated, splice the website finding into the
+// results. The email's pin (if any) keeps slot 0; otherwise the outdated site is
+// the most visceral lead. No-op when not outdated. Idempotent.
+function maybeInjectWebsiteFinding(scan) {
+  const mod = scan.signals && scan.signals.modernization;
+  if (!mod || !mod.outdated) return;
+  if (scan.picks.some(p => p.item.id === 'website-modern')) return;
+
+  const item = buildWebsiteModernFinding(scan.market, mod);
+  const pick = { item, impact: calculateImpact(item, SIZE_MULT[scan.size] || 1.0) };
+
+  const cur = scan.picks;
+  const pinnedFirst = pinnedLeadId && cur[0] && cur[0].item.id === pinnedLeadId;
+  const next = pinnedFirst
+    ? [cur[0], pick, cur[1]].filter(Boolean)   // honor the email pin at 01
+    : [pick, cur[0], cur[1]].filter(Boolean);  // outdated site leads
+  commitScanPicks(scan, next.slice(0, 3));
 }
 
 /* ============================================================

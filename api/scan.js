@@ -68,6 +68,7 @@ async function safeAnalyze(rawUrl) {
 
   // Fetch with timeout + size cap
   let html = '';
+  let finalUrl = '';
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 6000);
@@ -78,6 +79,7 @@ async function safeAnalyze(rawUrl) {
     });
     clearTimeout(timer);
     if (!resp.ok) return { reachable: false, reason: 'http_' + resp.status };
+    finalUrl = resp.url || '';
 
     const reader = resp.body?.getReader?.();
     if (reader) {
@@ -98,12 +100,18 @@ async function safeAnalyze(rawUrl) {
     return { reachable: false, reason: 'fetch_failed' };
   }
 
-  return extractSignals(html);
+  // Final protocol after redirects (e.g. a bare http:// site that never upgrades).
+  let finalHttps = url.protocol === 'https:';
+  try { if (finalUrl) finalHttps = new URL(finalUrl).protocol === 'https:'; } catch {}
+
+  return extractSignals(html, finalHttps);
 }
 
-function extractSignals(html) {
+function extractSignals(html, finalHttps = true) {
   const h = html.toLowerCase();
   const has = re => re.test(h);
+
+  const mobileViewport = has(/name=["']viewport["']/);
 
   return {
     reachable: true,
@@ -123,8 +131,31 @@ function extractSignals(html) {
       metaDescription: has(/name=["']description["']/),
       title:           has(/<title[^>]*>[^<]{3,}/)
     },
-    mobileViewport: has(/name=["']viewport["']/)
+    mobileViewport,
+    // Objective modernization signals — facts about the markup, never aesthetics.
+    modernization: assessModernization(h, mobileViewport, finalHttps)
   };
+}
+
+/**
+ * Detect an OUTDATED build from objective, verifiable markup signals only.
+ * Never a design/taste judgment. `outdated` requires several signals (>=3) so a
+ * modern site that merely trips one heuristic is never flagged.
+ */
+function assessModernization(h, mobileViewport, finalHttps) {
+  const noViewport   = !mobileViewport;
+  // Layout tables: deprecated cellpadding/cellspacing attrs, or many <table> tags.
+  const tableLayout  = /cellpadding\s*=|cellspacing\s*=/.test(h) || (h.split('<table').length - 1) >= 3;
+  const legacyMarkup = /<font[\s>]|<marquee|<center>|bgcolor\s*=|<frameset|<frame[\s>]/.test(h);
+  const flash        = /\.swf\b|application\/x-shockwave-flash|<embed[\s>]/.test(h);
+  const notHttps     = !finalHttps;
+  const legacyDoctype = !/^\s*(<!--[^]*?-->\s*)?<!doctype html>/.test(h);
+  const documentWrite = /document\.write\s*\(/.test(h);
+
+  const flags = { noViewport, tableLayout, legacyMarkup, flash, notHttps, legacyDoctype, documentWrite };
+  const score = Object.values(flags).filter(Boolean).length;
+
+  return { ...flags, score, outdated: score >= 3 };
 }
 
 /* ── IP / host blocklist helpers ────────────────────────── */
