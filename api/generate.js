@@ -24,9 +24,7 @@ const SCHEMA = {
   properties: {
     picks: {
       type: 'array',
-      minItems: 3,
-      maxItems: 3,
-      description: 'Exactly 3 chosen findings, in display order (the pinned id first when one is given).',
+      description: 'Exactly 3 chosen findings, in display order (the pinned id first when one is given). Return exactly three.',
       items: {
         type: 'object',
         properties: {
