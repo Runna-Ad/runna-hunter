@@ -1355,12 +1355,29 @@ function renderResults(scan, signals) {
   document.getElementById('stage-hunting').classList.remove('active');
   document.getElementById('stage-results').classList.add('active');
 
+  // Website signals strip
+  renderSignals(signals, scan.url);
+
+  // Deterministic findings + summary (instant first paint).
+  paintFindings(scan);
+
+  // Methodology content
+  document.getElementById('methContent').innerHTML = T[currentMarket].methContent;
+  document.getElementById('methToggle').classList.remove('open');
+  document.getElementById('methContent').classList.remove('open');
+
+  // AI layer (Phase 2): first refine the findings (select + sharpen prose), then
+  // map them → Rünna offerings. Both are graceful — the page is complete without.
+  fireRefine(scan);
+}
+
+/* ============================================================
+   PAINT FINDINGS (shared by first paint + AI-refine re-paint)
+   ============================================================ */
+function paintFindings(scan) {
   const t = T[currentMarket];
   const picks = scan.picks;
   const totalCost = scan.totalCost, totalGain = scan.totalGain;
-
-  // Website signals strip
-  renderSignals(signals, scan.url);
 
   const findingsEl = document.getElementById('findings');
   findingsEl.innerHTML = '';
@@ -1417,15 +1434,78 @@ function renderResults(scan, signals) {
     const target = parseFloat(el.dataset.target);
     animateNumber(0, target, 1200, v => { el.textContent = formatCurrencyShort(v); });
   });
+}
 
-  // Methodology content
-  document.getElementById('methContent').innerHTML = t.methContent;
-  document.getElementById('methToggle').classList.remove('open');
-  document.getElementById('methContent').classList.remove('open');
+/* ============================================================
+   AI REFINE (Phase 2) — select + sharpen the 3 findings, re-paint.
+   Deterministic result is already on screen; this only improves it.
+   Money never crosses the wire: Claude returns ids + prose, we recompute
+   every $ locally via calculateImpact(). Any failure keeps the deterministic
+   findings. Always hands off to fireRecommend() with the final set.
+   ============================================================ */
+async function fireRefine(scan) {
+  const reqScan = scan;
+  const pool = MARKET_DATA[scan.market].ineff[scan.industry] || MARKET_DATA[scan.market].ineff.other;
+  const candidates = pool.map(f => ({ id: f.id, title: f.title, body: f.body, solution: f.solution, frame: f.frame }));
+  const deterministicTop3 = scan.picks.map(p => p.item.id);
 
-  // AI layer (Phase 2): map findings → Rünna offerings + game plan. Fades in.
-  // Any failure = graceful omission (the page is complete without it).
+  let refined = null;
+  try {
+    const res = await Promise.race([
+      fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          market: scan.market, industry: scan.industry, size: scan.size,
+          timesink: scan.timesink, tools: scan.tools, signals: scan.signals,
+          lead: pinnedLeadId, deterministicTop3, candidates
+        })
+      }).then(r => r.json()),
+      new Promise(r => setTimeout(() => r(null), 3000)) // cap so a slow LLM never delays the page
+    ]);
+    if (res && res.ok && Array.isArray(res.picks) && res.picks.length === 3) refined = res.picks;
+  } catch { refined = null; }
+
+  // Apply only if the user is still on this result (not restarted / switched market).
+  if (refined && lastScan === reqScan && document.getElementById('stage-results').classList.contains('active')) {
+    applyRefinedPicks(scan, refined, pool);
+  }
+
+  // Map findings → offerings on the final (refined or deterministic) set.
   fireRecommend(scan);
+}
+
+// Rebuild scan.picks from the AI-chosen ids + sharpened prose, recomputing every
+// dollar locally from the catalog formula (Claude never supplies a number), then
+// re-paint the cards. Pin/order already enforced server-side; we trust the order.
+function applyRefinedPicks(scan, picks, pool) {
+  const sizeMult = SIZE_MULT[scan.size] || 1.0;
+  const byId = new Map(pool.map(f => [f.id, f]));
+
+  let totalCost = 0, totalGain = 0;
+  const rebuilt = [];
+  for (const p of picks) {
+    const base = byId.get(p.id);
+    if (!base) continue; // server already validated, but stay defensive
+    const item = { ...base, title: p.title || base.title, body: p.body || base.body };
+    const impact = calculateImpact(item, sizeMult);
+    if (impact.frame === 'cost') totalCost += impact.amount;
+    else if (impact.frame === 'gain') totalGain += impact.amount;
+    else { totalCost += impact.costAmount || 0; totalGain += impact.gainAmount || 0; }
+    rebuilt.push({ item, impact });
+  }
+  if (rebuilt.length !== 3) return; // never downgrade the deterministic set
+
+  scan.picks = rebuilt;
+  scan.totalCost = totalCost;
+  scan.totalGain = totalGain;
+  scan.total = totalCost + totalGain;
+  scan.summary = {
+    totalCost, totalGain, total: scan.total,
+    findings: rebuilt.map(p => ({ title: p.item.title, solution: p.item.solution, amount: p.impact.amount, frame: p.impact.frame }))
+  };
+
+  paintFindings(scan);
 }
 
 /* ============================================================
