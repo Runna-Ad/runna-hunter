@@ -1075,6 +1075,20 @@ let selectedTools = new Set();
 let lastScan = null;     // {industry,size,timesink,tools,url,market,summary,signals}
 let pinnedLeadId = null;  // finding id from ?lead= — pinned to slot 0 when present + valid
 let inboundRef = null;    // ?r= attribution code from a S.P.A.M. cold email, logged with the scan
+let learnedWeights = null; // industry → finding id → 0..1, learned by S.P.A.M. from outcomes (null = none)
+
+// Which findings have led to replies, scans and contact requests before.
+// Best-effort: slow or failing → no opinion, the ranking is exactly as before.
+(function loadLearnedWeights() {
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 2500);
+    fetch('https://spam-runnareach.vercel.app/api/public/hunter-signals', { signal: ctrl.signal })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j && j.weights && typeof j.weights === 'object') learnedWeights = j.weights; })
+      .catch(() => {});
+  } catch (_e) { /* no-op */ }
+})();
 let adaptiveAsked = false; // Phase 3: at most one optional adaptive question per scan
 
 /* ============================================================
@@ -1279,9 +1293,15 @@ function buildScan(industry, size, timesink) {
   const sizeMult = SIZE_MULT[size] || 1.0;
   const pool = mktData.ineff[industry] || mktData.ineff.other;
 
+  // The visitor's time sink still decides first (10). Within that, findings that
+  // have led somewhere before (learned weights from S.P.A.M., 0.5 = no opinion)
+  // come before the coin flip: ±2 at most, never enough to beat a time-sink match.
+  const learned = (learnedWeights && learnedWeights[industry]) || {};
   const scored = pool.map(item => ({
     ...item,
-    score: item.match.includes(timesink) ? 10 : Math.random()
+    score: (item.match.includes(timesink) ? 10 : 0)
+      + (typeof learned[item.id] === 'number' ? (learned[item.id] - 0.5) * 4 : 0)
+      + Math.random()
   }));
   scored.sort((a, b) => b.score - a.score);
 
@@ -1313,6 +1333,7 @@ function buildScan(industry, size, timesink) {
     summary: {
       totalCost, totalGain, total,
       findings: picks.map(p => ({
+        id: p.item.id,
         title: p.item.title, solution: p.item.solution,
         amount: p.impact.amount, frame: p.impact.frame
       }))
