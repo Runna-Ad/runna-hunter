@@ -19,3 +19,4 @@ Single static `index.html` (vanilla JS, `T.mx`/`T.ca` i18n) + Vercel serverless 
 - `hunter_scans` is anon INSERT-only RLS; client generates the row UUID, updates go through security-definer RPCs.
 - Website fetch in `scan.js` is SSRF-guarded — keep the guard when touching it.
 - Findings are benchmark framing, never accusations.
+- `?r=` is S.P.A.M.'s attribution code (pitches.attribution_code). It is sent with the scan and stored as `hunter_scans.ref`; a trigger in the shared DB (S.P.A.M. migration 0039) turns a matching scan, and its later contact-form submit, into events on that pitch. Keep passing it.

@@ -1074,6 +1074,7 @@ let currentMarket = 'mx';
 let selectedTools = new Set();
 let lastScan = null;     // {industry,size,timesink,tools,url,market,summary,signals}
 let pinnedLeadId = null;  // finding id from ?lead= — pinned to slot 0 when present + valid
+let inboundRef = null;    // ?r= attribution code from a S.P.A.M. cold email, logged with the scan
 let adaptiveAsked = false; // Phase 3: at most one optional adaptive question per scan
 
 /* ============================================================
@@ -1242,7 +1243,8 @@ function startHunt() {
     body: JSON.stringify({
       scanId: scan.id,
       market: currentMarket, industry, teamSize: size, timesink,
-      tools: scan.tools, websiteUrl: website, results: scan.summary
+      tools: scan.tools, websiteUrl: website, results: scan.summary,
+      ref: inboundRef
     })
   }).then(r => r.json()).catch(() => null);
 
@@ -1833,6 +1835,12 @@ function restartHunt() {
     const p = new URLSearchParams(window.location.search);
     const raw = (p.get('market') || p.get('lang') || p.get('country') || '').toLowerCase();
     if (['ca', 'canada', 'en'].includes(raw)) switchMarket('ca');
+
+    // Attribution: S.P.A.M. emails carry ?r=<code> so a scan can be tied back
+    // to the email that caused it. Read it BEFORE applyPrefill, which may
+    // auto-run the scan. Short lowercase code only; anything else is ignored.
+    const ref = (p.get('r') || '').trim().toLowerCase();
+    if (/^[a-z0-9]{4,16}$/.test(ref)) inboundRef = ref;
 
     // Pitch handoff: pre-fill the form from the cold-email CTA so the prospect
     // lands on a result that matches what the email promised. All params optional;

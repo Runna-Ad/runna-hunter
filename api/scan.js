@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   const {
     scanId, market, industry, teamSize, timesink, tools,
-    websiteUrl, results
+    websiteUrl, results, ref
   } = req.body || {};
 
   // 1 ── Website signals (best-effort; never throws to the client)
@@ -30,6 +30,9 @@ export default async function handler(req, res) {
     await logScan({
       id: scanId, market, industry, teamSize, timesink, tools,
       websiteUrl, signals, results,
+      // S.P.A.M. attribution code (?r= on the cold-email link). Anyone can post
+      // here, so keep only the short code shape; a forged one matches no pitch.
+      ref: typeof ref === 'string' && /^[a-z0-9]{4,16}$/.test(ref) ? ref : null,
       ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || null,
       userAgent: req.headers['user-agent'] || null
     });
@@ -217,6 +220,7 @@ async function logScan(row) {
       website_url: row.websiteUrl || null,
       signals:    row.signals || null,
       results:    row.results || null,
+      ref:        row.ref || null,
       ip:         row.ip,
       user_agent: row.userAgent
     })
