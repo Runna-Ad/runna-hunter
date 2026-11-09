@@ -20,3 +20,5 @@ Single static `index.html` (vanilla JS, `T.mx`/`T.ca` i18n) + Vercel serverless 
 - Website fetch in `scan.js` is SSRF-guarded — keep the guard when touching it.
 - Findings are benchmark framing, never accusations.
 - `?r=` is S.P.A.M.'s attribution code (pitches.attribution_code). It is sent with the scan and stored as `hunter_scans.ref`; a trigger in the shared DB (S.P.A.M. migration 0039) turns a matching scan, and its later contact-form submit, into events on that pitch. Keep passing it.
+- A scan is saved only after a real visitor interacts (tap, click, wheel, key in a visible tab): the page calls `/api/scan` with `mode: 'signals'` first (website facts, nothing saved) and `mode: 'log'` once, with the findings actually shown. Email security scanners open links and run the page; this keeps them from becoming fake `audit_scan` leads in S.P.A.M. No `mode` = old one-call behaviour, kept for pages loaded before 2026-11-09.
+- Email links without `size` still auto-run, at `small` (2–10), with a note and a team-size switch on the results that recalculates in place (no AI call; the game plan refreshes at most twice).

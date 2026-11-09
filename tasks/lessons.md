@@ -109,3 +109,9 @@ IPv6 ::1/fc00::/fe80::; cap fetch with AbortController timeout + a byte cap on t
 streamed body. Implemented in api/scan.js (isBlockedHost + isPrivateIp).
 SOURCE: This session.
 TAGS: #security #ssrf #serverless #pattern
+
+[2026-11-09] LESSON: an optional parameter on one side was required on the other, and no email visitor ever saw an audit
+WHAT HAPPENED: S.P.A.M. leaves `size` off the link when headcount is unknown (always, in practice) and the page auto-ran only with industry + size + timesink. 0 of 159 email links in 30 days could start an audit; hunter_scans had no real row since 2026-06-25. The page itself worked when given a full link.
+FIX: links without size run at `small` with a note and a size switch on the results; scans save only after a real interaction (scanners run pages too, and a saved scan with `ref` becomes a lead in S.P.A.M.).
+RULE: when another repo builds the link, auto-run on what it actually sends, and check in production that clicks turn into scans within a week of any change on either side.
+TAGS: #funnel #prefill #cross-repo #scanners

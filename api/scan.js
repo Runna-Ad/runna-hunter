@@ -6,6 +6,12 @@ import net from 'node:net';
  * 1. (Optional) SSRF-safe fetch of the prospect's website → deterministic signals
  * 2. Logs the full scan (inputs + signals + results) to Supabase (anon insert-only)
  * No LLM. All signal claims are factual / verifiable.
+ *
+ * Modes (2026-11-09): the page now calls `mode: 'signals'` first (website facts
+ * only, nothing saved) and `mode: 'log'` once a real visitor interacts with the
+ * results, so email security scanners that open the link and run the page never
+ * create a scan row (S.P.A.M. turns a row with `ref` into a lead). No mode = the
+ * old behaviour (fetch + save in one call), kept for pages loaded before this.
  */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,9 +19,33 @@ export default async function handler(req, res) {
   }
 
   const {
-    scanId, market, industry, teamSize, timesink, tools,
-    websiteUrl, results, ref
+    mode, scanId, market, industry, teamSize, timesink, tools,
+    websiteUrl, results, ref, signals: pageSignals
   } = req.body || {};
+
+  const row = {
+    id: scanId, market, industry, teamSize, timesink, tools, websiteUrl, results,
+    // S.P.A.M. attribution code (?r= on the cold-email link). Anyone can post
+    // here, so keep only the short code shape; a forged one matches no pitch.
+    ref: typeof ref === 'string' && /^[a-z0-9]{4,16}$/.test(ref) ? ref : null,
+    ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || null,
+    userAgent: req.headers['user-agent'] || null
+  };
+
+  // Save only: the page sends what the visitor saw, including the website
+  // signals this endpoint returned to it earlier. Untrusted like every other
+  // field here (the table is anon insert-only anyway), so cap the sizes.
+  if (mode === 'log') {
+    if (typeof scanId !== 'string' || !UUID_RE.test(scanId)) {
+      return res.status(400).json({ ok: false, error: 'bad_scan_id' });
+    }
+    try {
+      await logScan({ ...row, signals: capJson(pageSignals), results: capJson(results) });
+    } catch (err) {
+      console.error('Supabase log error:', err?.message);
+    }
+    return res.status(200).json({ ok: true });
+  }
 
   // 1 ── Website signals (best-effort; never throws to the client)
   let signals = null;
@@ -23,24 +53,31 @@ export default async function handler(req, res) {
     signals = await safeAnalyze(websiteUrl.trim());
   }
 
-  // 2. Log to Supabase. Must AWAIT (a serverless function is frozen once it
-  //    responds, so a non-awaited insert gets killed before it completes.
-  //      A logging failure must never break the user-facing response.
-  try {
-    await logScan({
-      id: scanId, market, industry, teamSize, timesink, tools,
-      websiteUrl, signals, results,
-      // S.P.A.M. attribution code (?r= on the cold-email link). Anyone can post
-      // here, so keep only the short code shape; a forged one matches no pitch.
-      ref: typeof ref === 'string' && /^[a-z0-9]{4,16}$/.test(ref) ? ref : null,
-      ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || null,
-      userAgent: req.headers['user-agent'] || null
-    });
-  } catch (err) {
-    console.error('Supabase log error:', err?.message);
+  // 2. Log to Supabase (old pages only; `mode: 'signals'` saves nothing). Must
+  //    AWAIT (a serverless function is frozen once it responds, so a non-awaited
+  //    insert gets killed before it completes). A logging failure must never
+  //    break the user-facing response.
+  if (mode !== 'signals') {
+    try {
+      await logScan({ ...row, signals });
+    } catch (err) {
+      console.error('Supabase log error:', err?.message);
+    }
   }
 
   return res.status(200).json({ ok: true, signals });
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A JSON value small enough to store, else null (20 KB cap). */
+function capJson(value) {
+  if (value == null) return null;
+  try {
+    return JSON.stringify(value).length <= 20000 ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 /* ── SSRF-safe website analysis ─────────────────────────── */
