@@ -192,6 +192,17 @@
   .chip.selected { background: rgba(119,92,191,0.17); border-color: var(--purple); color: #c4b0f0; }
   .chip.selected::before { content: '✓'; color: var(--purple); font-weight: 700; }
 
+  /* Team-size switch on the results (recalculates the numbers in place) */
+  .size-switch { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0 auto 18px; }
+  .size-switch:empty { display: none; }
+  .size-switch .ss-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted);
+  }
+  .size-switch .ss-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+  .size-switch .chip { padding: 8px 14px; }
+  .size-switch .ss-note { max-width: 420px; font-size: 12px; line-height: 1.5; color: var(--text-muted); text-align: center; }
+
   /* Adaptive question (Phase 3) — one optional, skippable refinement prompt */
   .adaptive-q {
     margin: 0 0 18px; padding: 16px 18px;
@@ -690,6 +701,7 @@
       <div class="results-header">
         <div class="eyebrow"><span class="pulse"></span><span data-t="resultsEyebrow">3 ineficiencias encontradas</span></div>
         <h2 class="results-title" data-t="resultsTitle">Analizamos. Esto es lo que <span class="accent-g">te está costando.</span></h2>
+        <div class="size-switch" id="sizeSwitch"></div>
         <div class="impact-summary" id="impactSummary"></div>
         <p class="benchmark-note" data-t="benchmarkNote">Estas son las fugas más comunes para negocios como el tuyo. Confirmamos exactamente cuáles aplican en tu llamada.</p>
       </div>
@@ -803,6 +815,8 @@ const T = {
     contactSuccessBody: 'Nils o Pedro te contactarán en las próximas 24 horas.',
     currency: 'MXN',
     sizeOpts: [['solo','Solo yo (1)'],['small','Pequeño (2–10)'],['mid','Mediano (11–50)'],['large','Grande (50+)']],
+    sizeSwitchLabel: 'Tamaño de tu equipo',
+    sizeAssumedNote: 'Calculado para un equipo de 2 a 10 personas. Elige el tuyo y los números se ajustan.',
     tsOpts: [['social','Redes sociales / contenido'],['reporting','Reportes / análisis'],['leads','Generación y seguimiento de leads'],['ads','Gestión de anuncios / campañas'],['email','Email marketing'],['production','Producción de marca / diseño']],
     indOpts: [['ecommerce','E-commerce / Marca D2C'],['restaurant','Restaurante / Alimentos & Bebidas'],['realestate','Bienes Raíces / Construcción'],['proservices','Servicios Profesionales'],['retail','Retail / Marca de Consumo'],['automotive','Automotriz / Distribuidores'],['trades','Oficios / Construcción'],['fitness','Salud & Wellness'],['hospitality','Hotelería / Turismo'],['other','Otro']],
     hrUnit: 'hrs/sem', wkUnit: 'sem', moUnit: 'mes',
@@ -877,6 +891,8 @@ const T = {
     contactSuccessBody: 'Nils or Pedro will reach out within 24 hours.',
     currency: 'CAD',
     sizeOpts: [['solo','Just me (1)'],['small','Small (2–10)'],['mid','Mid-size (11–50)'],['large','Larger (50+)']],
+    sizeSwitchLabel: 'Your team size',
+    sizeAssumedNote: 'Based on a team of 2 to 10. Pick yours and the numbers adjust.',
     tsOpts: [['social','Social media / content'],['reporting','Reporting / analytics'],['leads','Lead generation & follow-up'],['ads','Ads / campaign management'],['email','Email marketing'],['production','Brand production / design']],
     indOpts: [['ecommerce','E-commerce / D2C brand'],['restaurant','Restaurant / F&B'],['realestate','Real estate / Property'],['proservices','Professional services'],['retail','Retail / Consumer brand'],['automotive','Automotive / Dealerships'],['fitness','Fitness / Wellness'],['trades','Trades / Construction'],['hospitality','Hospitality / Tourism'],['other','Something else']],
     hrUnit: 'hrs/wk', wkUnit: 'wks', moUnit: 'mo',
@@ -1090,6 +1106,54 @@ let learnedWeights = null; // industry → finding id → 0..1, learned by S.P.A
   } catch (_e) { /* no-op */ }
 })();
 let adaptiveAsked = false; // Phase 3: at most one optional adaptive question per scan
+let sizeAssumed = false;   // email link had no team size: results start at 2–10 and say so
+let humanSeen = false;     // a real tap, click, wheel scroll or key press on this page
+let lastRec = null;        // last AI recommendation, re-applied when the size switch repaints
+let recRefreshes = 0;      // game-plan refreshes after a size change (capped per audit)
+let recRefreshTimer = null;
+
+// Email security scanners open every link in an email and some run the page, so
+// an audit is saved (and counted by S.P.A.M. as an audit_scan lead) only after a
+// real tap, click, wheel scroll or key press in a visible tab. Automation
+// browsers (navigator.webdriver) never count. The save waits 2s after the first
+// interaction so a quick team-size pick is saved with it.
+(function watchForHuman() {
+  if (navigator.webdriver) return;
+  const kinds = ['pointerdown', 'touchstart', 'wheel', 'keydown'];
+  const mark = (e) => {
+    if (!e.isTrusted || document.visibilityState !== 'visible') return;
+    humanSeen = true;
+    kinds.forEach(k => window.removeEventListener(k, mark, true));
+    setTimeout(() => maybeSaveScan(false), 2000);
+  };
+  kinds.forEach(k => window.addEventListener(k, mark, { capture: true, passive: true }));
+  // Leaving the page saves what the visitor saw, if they were a real visitor.
+  window.addEventListener('pagehide', () => maybeSaveScan(true));
+})();
+
+// Save the audit once: after a real interaction, and after the AI pass settled
+// (force skips that wait), so the row holds the findings the visitor saw.
+function maybeSaveScan(force) {
+  const scan = lastScan;
+  if (!scan || scan.saved || !scan.rendered || !humanSeen) return;
+  if (!force && !scan.refineSettled) return;
+  scan.saved = true;
+  try {
+    fetch('/api/scan', {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'log',
+        scanId: scan.id, market: scan.market, industry: scan.industry,
+        teamSize: scan.size, timesink: scan.timesink, tools: scan.tools,
+        websiteUrl: scan.url, signals: scan.signals,
+        results: { ...scan.summary, sizeAssumed: !!scan.sizeAssumed },
+        ref: inboundRef
+      })
+    }).catch(() => {});
+  } catch (_e) { /* a failed save never breaks the page */ }
+}
 
 /* ============================================================
    MARKET SWITCH
@@ -1135,10 +1199,15 @@ function switchMarket(mkt) {
   document.getElementById('huntForm').reset();
   updateChips();
 
-  // If on results, go back to intro
-  if (document.getElementById('stage-results').classList.contains('active')) {
+  // If on results (or mid-hunt), go back to intro; a run in progress is dropped
+  const onResults = document.getElementById('stage-results').classList.contains('active');
+  const onHunting = document.getElementById('stage-hunting').classList.contains('active');
+  if (onResults || onHunting) {
     document.getElementById('stage-results').classList.remove('active');
+    document.getElementById('stage-hunting').classList.remove('active');
     document.getElementById('stage-intro').classList.add('active');
+    lastScan = null;
+    sizeAssumed = false;
   }
 }
 
@@ -1239,28 +1308,34 @@ function startHunt() {
   document.getElementById('stage-intro').classList.remove('active');
   document.getElementById('stage-hunting').classList.add('active');
 
-  // Compute the deterministic findings now (instant) so the same set is logged + shown
-  const scan = buildScan(industry, size, timesink);
-  scan.tools = Array.from(selectedTools);
-  scan.url = website;
-  scan.market = currentMarket;
-  scan.signals = null;
-  // Client-generates the row id so we can flip `contacted` later without a SELECT policy.
-  // Only if randomUUID exists (a malformed uuid would break the insert); else skip tracking.
-  scan.id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
+  // The findings are picked when the animation ends (below), not now, so the
+  // learned weights (fetched with a 2.5s cap) also reach audits that start
+  // straight from an email link.
+  const scan = {
+    industry, size, timesink,
+    tools: Array.from(selectedTools),
+    url: website,
+    market: currentMarket,
+    signals: null,
+    sizeAssumed,
+    // Client-generates the row id so we can flip `contacted` later without a SELECT policy.
+    // Only if randomUUID exists (a malformed uuid would break the insert); else skip tracking.
+    id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null
+  };
   lastScan = scan;
+  lastRec = null;
+  recRefreshes = 0;
+  clearTimeout(recRefreshTimer);
 
-  // Fire the website-signal fetch + Supabase log in parallel with the animation
-  const scanPromise = fetch('/api/scan', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      scanId: scan.id,
-      market: currentMarket, industry, teamSize: size, timesink,
-      tools: scan.tools, websiteUrl: website, results: scan.summary,
-      ref: inboundRef
-    })
-  }).then(r => r.json()).catch(() => null);
+  // Website facts only, in parallel with the animation. The audit itself is
+  // saved later by maybeSaveScan(), once a real visitor interacts.
+  const scanPromise = website
+    ? fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'signals', websiteUrl: website })
+      }).then(r => r.json()).catch(() => null)
+    : Promise.resolve(null);
 
   const msgs = T[currentMarket].huntMsgs;
   const statusEl = document.getElementById('huntingStatus');
@@ -1280,6 +1355,8 @@ function startHunt() {
       ]);
       signals = res && res.signals ? res.signals : null;
     }
+    if (lastScan !== scan || currentMarket !== scan.market) return; // restarted or switched market meanwhile
+    Object.assign(scan, buildScan(industry, size, timesink));
     scan.signals = signals;
     renderResults(scan, signals);
   }, 2700);
@@ -1413,6 +1490,8 @@ function renderResults(scan, signals) {
 
   // Deterministic findings + summary (instant first paint).
   paintFindings(scan);
+  renderSizeSwitch(scan);
+  scan.rendered = true;
 
   // Methodology content
   document.getElementById('methContent').innerHTML = T[currentMarket].methContent;
@@ -1539,6 +1618,10 @@ async function fireRefine(scan) {
   // Apply only if the user is still on this result (not restarted / switched market).
   if (ok && stillOn(reqScan)) applyRefinedPicks(scan, res.picks, pool);
 
+  // The findings on screen are now final: save them if a real visitor is here.
+  scan.refineSettled = true;
+  maybeSaveScan(false);
+
   // Map findings → offerings on the final (refined or deterministic) set.
   fireRecommend(scan);
 
@@ -1622,7 +1705,7 @@ function commitScanPicks(scan, picks) {
   scan.total = totalCost + totalGain;
   scan.summary = {
     totalCost, totalGain, total: scan.total,
-    findings: picks.map(p => ({ title: p.item.title, solution: p.item.solution, amount: p.impact.amount, frame: p.impact.frame }))
+    findings: picks.map(p => ({ id: p.item.id, title: p.item.title, solution: p.item.solution, amount: p.impact.amount, frame: p.impact.frame }))
   };
 }
 
@@ -1714,7 +1797,46 @@ async function fireRecommend(scan) {
 
   // If the user already moved on / restarted, do nothing
   if (rec && lastScan === reqScan && document.getElementById('stage-results').classList.contains('active')) {
+    lastRec = rec;
     renderRecommendation(rec);
+  }
+}
+
+/* ============================================================
+   TEAM-SIZE SWITCH — every finding's $ scales with team size (SIZE_MULT),
+   so a change recalculates in place: same findings, new numbers, no AI call.
+   ============================================================ */
+function renderSizeSwitch(scan) {
+  const t = T[currentMarket];
+  const el = document.getElementById('sizeSwitch');
+  el.innerHTML =
+    `<div class="ss-label">${t.sizeSwitchLabel}</div>
+     <div class="ss-opts">${t.sizeOpts.map(([v, label]) =>
+       `<button type="button" class="chip${v === scan.size ? ' selected' : ''}" data-size="${v}" aria-pressed="${v === scan.size}">${esc(label)}</button>`
+     ).join('')}</div>
+     ${scan.sizeAssumed ? `<div class="ss-note">${esc(t.sizeAssumedNote)}</div>` : ''}`;
+  el.querySelectorAll('button[data-size]').forEach(b => { b.onclick = () => changeSize(scan, b.dataset.size); });
+}
+
+function changeSize(scan, size) {
+  if (!SIZE_MULT[size] || size === scan.size || !stillOn(scan)) return;
+  scan.size = size;
+  scan.sizeAssumed = false;   // the visitor chose it
+  document.getElementById('size').value = size;
+  const mult = SIZE_MULT[size];
+  commitScanPicks(scan, scan.picks.map(p => ({ item: p.item, impact: calculateImpact(p.item, mult) })));
+  paintFindings(scan);
+  if (lastRec) renderRecommendation(lastRec);   // keep each card's "what we'd build"
+  renderSizeSwitch(scan);
+  // The game plan mentions the team's size: refresh it once the visitor settles
+  // on one (1.5s after the last tap), at most twice per audit.
+  clearTimeout(recRefreshTimer);
+  if (recRefreshes < 2) {
+    recRefreshTimer = setTimeout(() => {
+      if (!stillOn(scan)) return;
+      recRefreshes++;
+      fireRecommend(scan);
+    }, 1500);
   }
 }
 
@@ -1828,6 +1950,10 @@ function restartHunt() {
   selectedTools.clear();
   pinnedLeadId = null;   // manual restart drops the email's pin
   adaptiveAsked = false;
+  sizeAssumed = false;
+  lastRec = null;
+  clearTimeout(recRefreshTimer);
+  document.getElementById('sizeSwitch').innerHTML = '';
   const aq = document.getElementById('adaptiveQ');
   if (aq) { aq.style.display = 'none'; aq.classList.remove('show'); aq.innerHTML = ''; }
   updateChips();
@@ -1916,6 +2042,16 @@ function applyPrefill(p) {
     if (pool.some(f => f.id === lead)) pinnedLeadId = lead;
   }
 
+  // S.P.A.M. rarely knows headcount, so its links carry no size. Run anyway at
+  // 2–10 people (the most common size it emails), say so on the results, and let
+  // the size switch there recalculate in place. Before this, every such link
+  // stopped at the form: 0 of 159 email links could start an audit (2026-11-09).
+  if (setIndustry && setTimesink && !setSize) {
+    document.getElementById('size').value = 'small';
+    setSize = true;
+    sizeAssumed = true;
+  }
+
   // Auto-run when the three required inputs all arrived valid — the prospect
   // clicked the email expecting a result, not another form to fill.
   if (setIndustry && setSize && setTimesink) {
@@ -1927,6 +2063,7 @@ function applyPrefill(p) {
    CONTACT MODAL
    ============================================================ */
 function openContact() {
+  maybeSaveScan(true);   // the contact form flags `contacted` on this audit's row
   const t = T[currentMarket];
 
   // Populate i18n
